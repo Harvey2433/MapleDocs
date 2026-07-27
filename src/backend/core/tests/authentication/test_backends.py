@@ -14,12 +14,42 @@ from lasuite.oidc_login.backends import get_oidc_refresh_token
 from core import models
 from core.authentication.backends import (
     OIDCAuthenticationBackend,
+    OptionalOIDCAuthenticationBackend,
     create_or_update_contact,
 )
 from core.factories import UserFactory
 from core.utils.analytics import PosthogEventName
 
 pytestmark = pytest.mark.django_db
+
+
+def test_optional_oidc_backend_does_not_initialize_provider_when_disabled(
+    settings, monkeypatch
+):
+    settings.OIDC_ENABLED = False
+    initializer = mock.Mock(side_effect=AssertionError("OIDC must stay unloaded"))
+    monkeypatch.setattr(OIDCAuthenticationBackend, "__init__", initializer)
+
+    backend = OptionalOIDCAuthenticationBackend()
+
+    assert backend.authenticate(None, username="member@example.com") is None
+    assert backend.get_user("missing") is None
+    initializer.assert_not_called()
+
+
+def test_optional_oidc_backend_delegates_when_enabled(settings, monkeypatch):
+    settings.OIDC_ENABLED = True
+    oidc_backend = mock.Mock()
+    oidc_backend.authenticate.return_value = "oidc-user"
+    oidc_backend.get_user.return_value = "session-user"
+    monkeypatch.setattr(
+        "core.authentication.backends.OIDCAuthenticationBackend",
+        mock.Mock(return_value=oidc_backend),
+    )
+    backend = OptionalOIDCAuthenticationBackend()
+
+    assert backend.authenticate(None, code="authorization-code") == "oidc-user"
+    assert backend.get_user("user-id") == "session-user"
 
 
 def test_authentication_getter_existing_user_no_email(

@@ -87,6 +87,32 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
             posthog_capture(PosthogEventName.USER_LOGIN, user)
 
 
+class OptionalOIDCAuthenticationBackend:
+    """Load the configured OIDC backend only when OIDC is enabled."""
+
+    @staticmethod
+    def _backend():
+        if not settings.OIDC_ENABLED:
+            return None
+        return OIDCAuthenticationBackend()
+
+    def authenticate(self, request, **credentials):
+        """Return no OIDC user without initializing an unconfigured provider."""
+
+        backend = self._backend()
+        if backend is None:
+            return None
+        return backend.authenticate(request, **credentials)
+
+    def get_user(self, user_id):
+        """Resolve an OIDC session only while the provider is enabled."""
+
+        backend = self._backend()
+        if backend is None:
+            return None
+        return backend.get_user(user_id)
+
+
 class SessionAuthentication(BaseSessionAuthentication):
     """
     SessionAuthentication that yields a 401 (instead of 403) for unauthenticated requests.

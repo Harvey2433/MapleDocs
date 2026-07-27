@@ -363,7 +363,7 @@ class Base(Configuration):
 
     AUTHENTICATION_BACKENDS = [
         "django.contrib.auth.backends.ModelBackend",
-        "core.authentication.backends.OIDCAuthenticationBackend",
+        "core.authentication.backends.OptionalOIDCAuthenticationBackend",
     ]
 
     # Django applications from the highest priority to the lowest
@@ -1202,11 +1202,6 @@ class Base(Configuration):
         settings to be loaded.
         """
         super().post_setup()
-
-        if not cls.OIDC_ENABLED:
-            cls.AUTHENTICATION_BACKENDS = [
-                "django.contrib.auth.backends.ModelBackend"
-            ]
 
         if (
             cls.__name__ == "Production"

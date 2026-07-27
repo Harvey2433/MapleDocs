@@ -16,7 +16,8 @@ from pathlib import Path
 from urllib.parse import unquote, urlencode, urlparse
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
+from django.contrib.auth.backends import ModelBackend
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.search import TrigramSimilarity
 from django.core.cache import cache
@@ -127,7 +128,7 @@ class LocalLoginView(APIView):
             .only("admin_email")
             .first()
         )
-        user = authenticate(
+        user = ModelBackend().authenticate(
             request,
             username=account.admin_email if account else email,
             password=serializer.validated_data["password"],
