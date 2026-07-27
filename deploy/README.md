@@ -80,7 +80,7 @@ Create the first administrator:
 ```bash
 docker compose --env-file deploy/production.env \
   -f compose.production.yml run --rm backend \
-  python manage.py createsuperuser
+  python manage.py createadmin
 ```
 
 Inspect status and logs:
