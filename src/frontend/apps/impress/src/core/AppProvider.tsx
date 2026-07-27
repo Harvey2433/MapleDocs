@@ -6,13 +6,13 @@ import {
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 
-import { AppearanceProvider } from '@/features/appearance';
-import { Auth, KEY_AUTH, setAuthUrl } from '@/features/auth';
+import { KEY_AUTH, setAuthUrl } from '@/features/auth';
 import { useRouteChangeCompleteFocus } from '@/hooks/useRouteChangeCompleteFocus';
 import { useResponsiveStore } from '@/stores/';
 
 import { ConfigProvider } from './config/';
 import { ThemeProvider } from './config/ThemeProvider';
+import { AuthenticatedAppearance } from './AuthenticatedAppearance';
 
 export const DEFAULT_QUERY_RETRY = 1;
 
@@ -75,9 +75,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ConfigProvider>
-          <Auth>
-            <AppearanceProvider>{children}</AppearanceProvider>
-          </Auth>
+          <AuthenticatedAppearance>{children}</AuthenticatedAppearance>
         </ConfigProvider>
       </ThemeProvider>
     </QueryClientProvider>

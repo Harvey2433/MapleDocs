@@ -77,6 +77,24 @@ def test_local_login_accepts_email_and_creates_session(settings):
     assert client.get("/api/v1.0/users/me/").status_code == 200
 
 
+def test_local_login_matches_email_case_insensitively(settings):
+    settings.LOCAL_AUTH_ENABLED = True
+    user = factories.UserFactory(
+        admin_email="member@example.com", email="member@example.com"
+    )
+    user.set_password(PASSWORD)
+    user.save()
+
+    response = APIClient().post(
+        "/api/v1.0/auth/local/login/",
+        {"email": "MEMBER@EXAMPLE.COM", "password": PASSWORD},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(user.id)
+
+
 def test_local_login_rejects_invalid_password(settings):
     settings.LOCAL_AUTH_ENABLED = True
     user = factories.UserFactory(

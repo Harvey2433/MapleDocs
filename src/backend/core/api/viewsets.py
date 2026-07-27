@@ -121,9 +121,15 @@ class LocalLoginView(APIView):
             raise Http404
         serializer = serializers.LocalLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"].lower()
+        account = (
+            models.User.objects.filter(admin_email__iexact=email)
+            .only("admin_email")
+            .first()
+        )
         user = authenticate(
             request,
-            username=serializer.validated_data["email"],
+            username=account.admin_email if account else email,
             password=serializer.validated_data["password"],
         )
         if user is None or not user.is_active:
