@@ -1,9 +1,15 @@
 DOCS_HOST=docs.domain.tld
 KEYCLOAK_HOST=id.domain.tld
 S3_HOST=storage.domain.tld
+S3_INTERNAL_URL=https://${S3_HOST}
 BACKEND_HOST=backend
 FRONTEND_HOST=frontend
 YPROVIDER_HOST=y-provider
+ONLYOFFICE_HOST=onlyoffice
+# Generate one value and use it for both variables.
+ONLYOFFICE_JWT_SECRET=<generate a random key>
+JWT_SECRET=<use the same random key>
 BUCKET_NAME=docs-media-storage
+CLIENT_MAX_BODY_SIZE=110m
 REALM_NAME=docs
 #COLLABORATION_WS_URL=wss://${DOCS_HOST}/collaboration/ws/

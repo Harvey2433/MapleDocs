@@ -15,9 +15,6 @@ from rest_framework.test import APIClient
 
 from core import factories, models
 from core.services.ai_services.legacy import get_legacy_ai_service
-from core.tests.documents.test_api_documents_ai_proxy import (  # pylint: disable=unused-import
-    ai_settings,
-)
 
 pytestmark = pytest.mark.django_db
 
@@ -28,6 +25,17 @@ pytestmark = pytest.mark.django_db
 def clear_openai_client_config():
     """Clear the configure_legacy_openai_client cache."""
     get_legacy_ai_service.cache_clear()
+
+
+@pytest.fixture
+def ai_settings(settings):
+    """Enable the retained legacy AI API for explicit tests."""
+
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = "http://example.com"
+    settings.OPENAI_SDK_API_KEY = "test-key"
+    settings.AI_FEATURE_ENABLED = True
+    settings.AI_FEATURE_LEGACY_ENABLED = True
 
 
 def test_external_api_documents_ai_transform_not_allowed(
@@ -42,7 +50,6 @@ def test_external_api_documents_ai_transform_not_allowed(
         link_reach=models.LinkReachChoices.RESTRICTED,
         creator=user_specific_sub,
     )
-
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {user_token}")
 
@@ -76,34 +83,6 @@ def test_external_api_documents_ai_translate_not_allowed(
     response = client.post(
         f"/external_api/v1.0/documents/{document.id!s}/ai-translate/",
         {"text": "hello", "language": "es"},
-    )
-
-    assert response.status_code == 403
-    assert response.json() == {
-        "detail": "You do not have permission to perform this action."
-    }
-
-
-def test_external_api_documents_ai_proxy_not_allowed(
-    user_token, resource_server_backend, user_specific_sub
-):
-    """
-    Connected users SHOULD NOT be allowed to access AI proxy endpoints
-    from a resource server by default.
-    """
-
-    document = factories.DocumentFactory(
-        link_reach=models.LinkReachChoices.RESTRICTED,
-        creator=user_specific_sub,
-    )
-
-    client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {user_token}")
-
-    response = client.post(
-        f"/external_api/v1.0/documents/{document.id!s}/ai-proxy/",
-        b"{}",
-        content_type="application/json",
     )
 
     assert response.status_code == 403
@@ -174,7 +153,6 @@ def test_external_api_documents_ai_transform_can_be_allowed(
         ],
     )
 
-
 @override_settings(
     EXTERNAL_API={
         "documents": {
@@ -234,49 +212,3 @@ def test_external_api_documents_ai_translate_can_be_allowed(
             {"role": "user", "content": "Hello"},
         ],
     )
-
-
-@override_settings(
-    EXTERNAL_API={
-        "documents": {
-            "enabled": True,
-            "actions": [
-                "list",
-                "retrieve",
-                "children",
-                "ai_proxy",
-            ],
-        },
-    }
-)
-@pytest.mark.usefixtures("ai_settings")
-@patch("core.services.ai_services.blocknote.AIService.stream")
-def test_external_api_documents_ai_proxy_can_be_allowed(
-    mock_stream, user_token, resource_server_backend, user_specific_sub
-):
-    """
-    Users SHOULD be allowed to use the AI proxy endpoint when the
-    corresponding action is enabled via EXTERNAL_API settings.
-    """
-    client = APIClient()
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {user_token}")
-
-    document = factories.DocumentFactory(
-        link_reach=models.LinkReachChoices.RESTRICTED, creator=user_specific_sub
-    )
-    factories.UserDocumentAccessFactory(
-        document=document, user=user_specific_sub, role=models.RoleChoices.OWNER
-    )
-
-    mock_stream.return_value = iter(["data: response\n"])
-
-    url = f"/external_api/v1.0/documents/{document.id!s}/ai-proxy/"
-    response = client.post(
-        url,
-        b"{}",
-        content_type="application/json",
-    )
-
-    assert response.status_code == 200
-    assert response["Content-Type"] == "text/event-stream"  # type: ignore
-    mock_stream.assert_called_once()

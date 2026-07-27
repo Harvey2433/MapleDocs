@@ -45,7 +45,6 @@ interface ThemeCustomization {
 export interface ConfigResponse {
   AI_BOT: { name: string; color: string };
   AI_FEATURE_ENABLED?: boolean;
-  AI_FEATURE_BLOCKNOTE_ENABLED?: boolean;
   AI_FEATURE_LEGACY_ENABLED?: boolean;
   API_USERS_SEARCH_QUERY_MIN_LENGTH?: number;
   COLLABORATION_WS_URL?: string;
@@ -54,6 +53,7 @@ export interface ConfigResponse {
   CONVERSION_FILE_EXTENSIONS_ALLOWED: string[];
   CONVERSION_FILE_MAX_SIZE: number;
   CONVERSION_UPLOAD_ENABLED?: boolean;
+  COMMENTS_ENABLED?: boolean;
   ENVIRONMENT: string;
   FRONTEND_CSS_URL?: string;
   FRONTEND_HOMEPAGE_FEATURE_ENABLED?: boolean;
@@ -63,6 +63,11 @@ export interface ConfigResponse {
   LANGUAGES: [string, string][];
   LANGUAGE_CODE: string;
   MEDIA_BASE_URL?: string;
+  LOCAL_AUTH_ENABLED?: boolean;
+  LOCAL_AUTH_REGISTRATION_ENABLED?: boolean;
+  OIDC_ENABLED?: boolean;
+  ONLYOFFICE_ENABLED?: boolean;
+  ONLYOFFICE_DOCUMENT_SERVER_URL?: string;
   POSTHOG_KEY?: PostHogConf['key'];
   POSTHOG_HOST?: PostHogConf['host'];
   RELEASE_VERSION: string;

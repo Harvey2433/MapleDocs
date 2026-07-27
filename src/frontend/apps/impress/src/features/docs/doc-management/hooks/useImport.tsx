@@ -3,12 +3,19 @@ import {
   useToastProvider,
 } from '@gouvfr-lasuite/cunningham-react';
 import { t } from 'i18next';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
+import { APIError } from '@/api';
 import { useConfig } from '@/core';
 
-import { ContentTypes, useImportDoc } from '../api/useImportDoc';
+import {
+  ContentTypes,
+  ImportConflict,
+  ImportConflictStrategy,
+  useImportDoc,
+} from '../api/useImportDoc';
+import { ImportConflictModal } from '../components/ImportConflictModal';
 import { Doc } from '../types';
 
 interface UseImportProps {
@@ -19,6 +26,18 @@ interface UseImportProps {
 interface AcceptedMap {
   [mime: string]: string[];
 }
+
+const isImportConflict = (value: unknown): value is ImportConflict => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const conflict = value as Partial<ImportConflict>;
+  return (
+    (conflict.code === 'exact_duplicate' ||
+      conflict.code === 'name_conflict') &&
+    !!conflict.existing_document
+  );
+};
 
 export const useImport = ({ onDragOver, onImportSuccess }: UseImportProps) => {
   const { toast } = useToastProvider();
@@ -45,7 +64,7 @@ export const useImport = ({ onDragOver, onImportSuccess }: UseImportProps) => {
   const ACCEPT = useMemo((): AcceptedMap => {
     const allowedExtensions = config?.CONVERSION_FILE_EXTENSIONS_ALLOWED?.map(
       (ext: string) => ext.toLowerCase(),
-    ) ?? ['.docx', '.md'];
+    ) ?? ['.doc', '.docx', '.md'];
 
     return Object.values(ContentTypes).reduce(
       (acc: AcceptedMap, contentType) => {
@@ -82,24 +101,80 @@ export const useImport = ({ onDragOver, onImportSuccess }: UseImportProps) => {
     [ACCEPT, toast],
   );
 
+  const { mutateAsync: importDoc, isPending: isMutationPending } =
+    useImportDoc();
+  const [isBatchPending, setIsBatchPending] = useState(false);
+  const [pendingConflict, setPendingConflict] = useState<{
+    file: File;
+    conflict: ImportConflict;
+    resolve: (strategy: Exclude<ImportConflictStrategy, 'ask'>) => void;
+  }>();
+
+  const requestConflictStrategy = useCallback(
+    (file: File, conflict: ImportConflict) =>
+      new Promise<Exclude<ImportConflictStrategy, 'ask'>>((resolve) => {
+        setPendingConflict({ file, conflict, resolve });
+      }),
+    [],
+  );
+
+  const importFiles = useCallback(
+    async (files: File[]) => {
+      setIsBatchPending(true);
+      try {
+        for (const file of files) {
+          const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+          const contentType = Object.values(ContentTypes).find((item) =>
+            item.extensions.includes(extension),
+          );
+          try {
+            const doc = await importDoc([
+              file,
+              file.type || contentType?.mime || 'application/octet-stream',
+              'ask',
+            ]);
+            onImportSuccess?.(doc);
+          } catch (error) {
+            const conflict =
+              error instanceof APIError ? (error.data as unknown) : undefined;
+            if (
+              error instanceof APIError &&
+              error.status === 409 &&
+              isImportConflict(conflict)
+            ) {
+              const strategy = await requestConflictStrategy(file, conflict);
+              setPendingConflict(undefined);
+              const doc = await importDoc([
+                file,
+                file.type || contentType?.mime || 'application/octet-stream',
+                strategy,
+              ]);
+              onImportSuccess?.(doc);
+            }
+          }
+        }
+      } finally {
+        setIsBatchPending(false);
+      }
+    },
+    [importDoc, onImportSuccess, requestConflictStrategy],
+  );
+
   const { getRootProps, getInputProps, open } = useDropzone({
     accept: ACCEPT,
     maxSize: MAX_FILE_SIZE.bytes,
     onDrop(acceptedFiles) {
       onDragOver?.(false);
       const allowedExtensions = Object.values(ACCEPT).flat();
-      for (const file of acceptedFiles) {
+      const validFiles = acceptedFiles.filter((file) => {
         const ext = `.${file.name.split('.').pop()?.toLowerCase()}`;
         if (!allowedExtensions.includes(ext)) {
           toastInvalidFileType(file.name);
-          continue;
+          return false;
         }
-        importDoc([file, file.type], {
-          onSuccess: (doc: Doc) => {
-            onImportSuccess?.(doc);
-          },
-        });
-      }
+        return true;
+      });
+      void importFiles(validFiles);
     },
     onDragEnter: () => {
       onDragOver?.(true);
@@ -132,13 +207,18 @@ export const useImport = ({ onDragOver, onImportSuccess }: UseImportProps) => {
     noClick: true,
     noKeyboard: true,
   });
-  const { mutate: importDoc, isPending } = useImportDoc();
-
   return {
     getRootProps,
     getInputProps,
     open,
     isEnabled: config?.CONVERSION_UPLOAD_ENABLED || false,
-    isPending,
+    isPending: isMutationPending || isBatchPending,
+    conflictModal: pendingConflict ? (
+      <ImportConflictModal
+        conflict={pendingConflict.conflict}
+        fileName={pendingConflict.file.name}
+        onResolve={pendingConflict.resolve}
+      />
+    ) : null,
   };
 };

@@ -15,15 +15,14 @@ These are the environment variables you can set for the `impress-backend` contai
 | MISTRAL_SDK_BASE_URL                            | Mistral compatible AI base url                                                                                                                                             |                                                                         |
 | AI_BOT                                          | Information to give to the frontend about the AI bot                                                                                                                       | { "name": "Docs AI", "color": "#8bc6ff" }                               |
 | AI_FEATURE_ENABLED                              | Enable AI options                                                                                                                                                          | false                                                                   |
-| AI_FEATURE_BLOCKNOTE_ENABLED                    | Enable Blocknote AI options                                                                                                                                                | false                                                                   |
 | AI_FEATURE_LEGACY_ENABLED                       | Enable legacyAI options                                                                                                                                                    | true                                                                    |
 | AI_MODEL                                        | AI Model to use                                                                                                                                                            |                                                                         |
-| AI_VERCEL_SDK_VERSION                            | The vercel AI SDK version used                                                                                                                                            | 6                                                                       |
 | ALLOW_LOGOUT_GET_METHOD                         | Allow get logout method                                                                                                                                                    | true                                                                    |
 | API_USERS_LIST_LIMIT                            | Limit on API users                                                                                                                                                         | 5                                                                       |
 | API_USERS_LIST_THROTTLE_RATE_BURST              | Throttle rate for api on burst                                                                                                                                             | 30/minute                                                               |
 | API_USERS_LIST_THROTTLE_RATE_SUSTAINED          | Throttle rate for api                                                                                                                                                      | 180/hour                                                                |
 | API_USERS_SEARCH_QUERY_MIN_LENGTH               | Minimum characters to insert to search a user                                                                                                                              | 3                                                                       |
+| AUTH_THROTTLE_RATE                              | Maximum local login and registration attempts per client                                                                                                                   | 20/minute                                                               |
 | AWS_S3_ACCESS_KEY_ID                            | Access id for s3 endpoint                                                                                                                                                  |                                                                         |
 | AWS_S3_ENDPOINT_URL                             | S3 endpoint                                                                                                                                                                |                                                                         |
 | AWS_S3_REGION_NAME                              | Region name for s3 endpoint                                                                                                                                                |                                                                         |
@@ -150,37 +149,7 @@ These are the environment variables you can set for the `impress-backend` contai
 
 These are the environment variables you can set to build the `impress-frontend` image.
 
-Depending on how you are building the front-end application, this variable is used in different ways.
-
-If you want to build the Docker image, this variable is used as an argument in the build command.
-
-Example:
-
-```bash
-docker build -f src/frontend/Dockerfile --target frontend-production --build-arg PUBLISH_AS_MIT=false docs-frontend:latest
-```
-
-If you want to build the front-end application using the yarn build command, you can edit the file `src/frontend/apps/impress/.env` with the `NODE_ENV=production` environment variable and modify it. Alternatively, you can use the listed environment variables with the prefix `NEXT_PUBLIC_` (for example, `NEXT_PUBLIC_PUBLISH_AS_MIT=false`).
-
-Example:
-
-```bash
-cd src/frontend/apps/impress
-NODE_ENV=production NEXT_PUBLIC_PUBLISH_AS_MIT=false yarn build
-```
-
-| Option         | Description                                                                        | default |
-| -------------- | ---------------------------------------------------------------------------------- | ------- |
-| API_ORIGIN     | backend domain - it uses the current domain if not initialized                     |         |
-| SW_DEACTIVATED | To not install the service worker                                                  |         |
-| PUBLISH_AS_MIT | Removes packages whose licences are incompatible with the MIT licence (see  below) | true    |
-
-Packages with licences incompatible with the MIT licence:
-
-* `xl-docx-exporter`: [GPL](https://github.com/TypeCellOS/BlockNote/blob/main/packages/xl-docx-exporter/LICENSE),
-* `xl-pdf-exporter`: [GPL](https://github.com/TypeCellOS/BlockNote/blob/main/packages/xl-pdf-exporter/LICENSE),
-* `xl-multi-column`: [GPL](https://github.com/TypeCellOS/BlockNote/blob/main/packages/xl-multi-column/LICENSE).
-
-In `.env.development`, `PUBLISH_AS_MIT` is set to `false`, allowing developers to test Docs with all its features.
-
-⚠️ If you run Docs in production with `PUBLISH_AS_MIT` set to `false` make sure you fulfill your BlockNote licensing or [subscription](https://www.blocknotejs.org/about#partner-with-us) obligations.
+| Option         | Description                                                    | default |
+| -------------- | -------------------------------------------------------------- | ------- |
+| API_ORIGIN     | backend domain - it uses the current domain if not initialized |         |
+| SW_DEACTIVATED | To not install the service worker                              |         |

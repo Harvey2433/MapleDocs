@@ -20,6 +20,7 @@ import { useResponsiveStore } from '@/stores';
 import { useCollaboration } from '../hook/useCollaboration';
 
 import { BlockNoteEditor, BlockNoteReader } from './BlockNoteEditor';
+import { OfficeEditor } from './OfficeEditor';
 
 const DOCS_EDITOR_CLASS = '--docs--doc-editor';
 
@@ -83,7 +84,7 @@ interface DocEditorProps {
   doc: Doc;
 }
 
-export const DocEditor = ({ doc }: DocEditorProps) => {
+const CollaborativeDocEditor = ({ doc }: DocEditorProps) => {
   useCollaboration(doc.id);
   const { isEditable, isLoading } = useIsCollaborativeEditable(doc);
   const isDeletedDoc = !!doc.deleted_at;
@@ -132,6 +133,23 @@ export const DocEditor = ({ doc }: DocEditorProps) => {
       <DocCoreEditor doc={doc} readOnly={readOnly} />
     </DocEditorContainer>
   );
+};
+
+export const DocEditor = ({ doc }: DocEditorProps) => {
+  if (doc.file_type === 'doc' || doc.file_type === 'docx') {
+    const isDeletedDoc = !!doc.deleted_at;
+    return (
+      <DocEditorContainer
+        docHeader={<DocHeader doc={doc} />}
+        isDeletedDoc={isDeletedDoc}
+        readOnly={!doc.abilities.partial_update || isDeletedDoc}
+      >
+        <OfficeEditor doc={doc} />
+      </DocEditorContainer>
+    );
+  }
+
+  return <CollaborativeDocEditor doc={doc} />;
 };
 
 interface DocCoreEditorProps {

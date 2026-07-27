@@ -30,6 +30,7 @@ export const DocsGrid = ({
     getRootProps,
     isPending: isImportPending,
     isEnabled: isImportEnabled,
+    conflictModal,
   } = useImport({
     onDragOver: (dragOver: boolean) => {
       setIsDragOver(dragOver);
@@ -78,98 +79,107 @@ export const DocsGrid = ({
   };
 
   return (
-    <Box
-      className="--docs--doc-grid"
-      $position="relative"
-      $padding={{ horizontal: 'sm' }}
-      $width="100%"
-      $maxWidth="960px"
-      $minHeight="0"
-      $align="center"
-    >
-      <DocsGridLoader isLoading={isRefetching || loading || isImportPending} />
-      <Card
-        data-testid="docs-grid"
+    <>
+      <Box
+        className="--docs--doc-grid"
+        $position="relative"
+        $padding={{ horizontal: 'sm' }}
         $width="100%"
-        $css={css`
-          border: 1px solid var(--c--contextuals--border--surface--primary);
-          ${
-            isDragOver
-              ? `
+        $maxWidth="960px"
+        $minHeight="0"
+        $align="center"
+      >
+        <DocsGridLoader
+          isLoading={isRefetching || loading || isImportPending}
+        />
+        <Card
+          data-testid="docs-grid"
+          $width="100%"
+          $css={css`
+            border: 1px solid var(--c--contextuals--border--surface--primary);
+            ${
+              isDragOver
+                ? `
               border: 2px dashed var(--c--contextuals--border--semantic--brand--primary);
               background-color: var(--c--contextuals--background--semantic--brand--tertiary);
             `
-              : ''
-          }
-        `}
-        $padding={{
-          bottom: 'md',
-        }}
-        {...(withUpload
-          ? getRootProps({ className: 'dropzone', tabIndex: -1 })
-          : {})}
-      >
-        <DocGridTitleBar target={target} />
-        {!hasDocs && !loading && (
-          <Box $padding={{ vertical: 'sm' }} $align="center" $justify="center">
-            <Text $size="sm" $weight="700">
-              {t('No documents found')}
-            </Text>
-          </Box>
-        )}
-        {hasDocs && (
-          <Box
-            $gap="6px"
-            $padding={{ vertical: 'sm', horizontal: isDesktop ? 'md' : 'xs' }}
-          >
-            <Box aria-label={t('Documents grid')}>
-              <Box
-                $direction="row"
-                $padding={{ horizontal: 'xs' }}
-                $gap="10px"
-                data-testid="docs-grid-header"
-                aria-hidden="true"
-              >
-                <Box $flex={flexLeft} $padding="3xs">
-                  <Text $size="xs" $variation="secondary" $weight="500">
-                    {t('Name')}
-                  </Text>
-                </Box>
-                {isDesktop && (
-                  <Box $flex={flexRight} $padding={{ vertical: '3xs' }}>
-                    <Text $size="xs" $weight="500" $variation="secondary">
-                      {DocDefaultFilter.TRASHBIN === target
-                        ? t('Days remaining')
-                        : t('Updated at')}
+                : ''
+            }
+          `}
+          $padding={{
+            bottom: 'md',
+          }}
+          {...(withUpload
+            ? getRootProps({ className: 'dropzone', tabIndex: -1 })
+            : {})}
+        >
+          <DocGridTitleBar target={target} />
+          {!hasDocs && !loading && (
+            <Box
+              $padding={{ vertical: 'sm' }}
+              $align="center"
+              $justify="center"
+            >
+              <Text $size="sm" $weight="700">
+                {t('No documents found')}
+              </Text>
+            </Box>
+          )}
+          {hasDocs && (
+            <Box
+              $gap="6px"
+              $padding={{ vertical: 'sm', horizontal: isDesktop ? 'md' : 'xs' }}
+            >
+              <Box aria-label={t('Documents grid')}>
+                <Box
+                  $direction="row"
+                  $padding={{ horizontal: 'xs' }}
+                  $gap="10px"
+                  data-testid="docs-grid-header"
+                  aria-hidden="true"
+                >
+                  <Box $flex={flexLeft} $padding="3xs">
+                    <Text $size="xs" $variation="secondary" $weight="500">
+                      {t('Name')}
                     </Text>
                   </Box>
-                )}
+                  {isDesktop && (
+                    <Box $flex={flexRight} $padding={{ vertical: '3xs' }}>
+                      <Text $size="xs" $weight="500" $variation="secondary">
+                        {DocDefaultFilter.TRASHBIN === target
+                          ? t('Days remaining')
+                          : t('Updated at')}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+                <Box role="list">
+                  <DocGridContentList docs={docs} />
+                </Box>
               </Box>
-              <Box role="list">
-                <DocGridContentList docs={docs} />
-              </Box>
+              {hasNextPage && !loading && (
+                <InView
+                  data-testid="infinite-scroll-trigger"
+                  as="div"
+                  onChange={loadMore}
+                >
+                  {!isFetching && hasNextPage && (
+                    <Button
+                      onClick={() => void fetchNextPage()}
+                      color="brand"
+                      variant="tertiary"
+                    >
+                      {t('More docs')}
+                    </Button>
+                  )}
+                </InView>
+              )}
             </Box>
-            {hasNextPage && !loading && (
-              <InView
-                data-testid="infinite-scroll-trigger"
-                as="div"
-                onChange={loadMore}
-              >
-                {!isFetching && hasNextPage && (
-                  <Button
-                    onClick={() => void fetchNextPage()}
-                    color="brand"
-                    variant="tertiary"
-                  >
-                    {t('More docs')}
-                  </Button>
-                )}
-              </InView>
-            )}
-          </Box>
-        )}
-      </Card>
-    </Box>
+          )}
+        </Card>
+      </Box>
+      {conflictModal}
+    </>
   );
 };
 

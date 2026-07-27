@@ -4,6 +4,7 @@ import {
   HOME_URL,
   LOGIN_URL,
   LOGOUT_URL,
+  OIDC_LOGIN_URL,
   PATH_AUTH_SESSION_STORAGE,
   SILENT_LOGIN_RETRY,
 } from './conf';
@@ -51,7 +52,7 @@ export const gotoSilentLogin = () => {
 
     safeLocalStorage.setItem(SILENT_LOGIN_RETRY, 'true');
 
-    const REDIRECT = `${LOGIN_URL}?${params.toString()}`;
+    const REDIRECT = `${OIDC_LOGIN_URL}?${params.toString()}`;
     window.location.replace(REDIRECT);
   }
 };
@@ -65,5 +66,13 @@ export const resetSilent = () => {
 };
 
 export const gotoLogout = () => {
-  window.location.replace(LOGOUT_URL);
+  const csrfToken = document.cookie
+    .split(';')
+    .find((cookie) => cookie.trim().startsWith('csrftoken='))
+    ?.split('=')[1];
+  void fetch(LOGOUT_URL, {
+    method: 'POST',
+    credentials: 'include',
+    headers: csrfToken ? { 'X-CSRFToken': csrfToken } : undefined,
+  }).finally(() => window.location.replace(LOGIN_URL));
 };

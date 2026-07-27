@@ -1,5 +1,5 @@
 import fetchMock from 'fetch-mock';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SILENT_LOGIN_RETRY } from '../conf';
 import { gotoLogout, gotoSilentLogin } from '../utils';
@@ -19,6 +19,11 @@ Object.defineProperty(window, 'location', {
 const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
 
 describe('utils', () => {
+  beforeEach(() => {
+    fetchMock.hardReset();
+    fetchMock.mockGlobal();
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
     fetchMock.hardReset();
@@ -28,11 +33,13 @@ describe('utils', () => {
   });
 
   it('checks logout redirects to logout URL', async () => {
+    fetchMock.post('http://test.jest/api/v1.0/auth/local/logout/', 204);
     gotoLogout();
 
-    expect(mockReplace).toHaveBeenCalledWith(
-      'http://test.jest/api/v1.0/logout/',
-    );
+    await vi.waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/login/');
+    });
+    expect(fetchMock.callHistory.called()).toBe(true);
   });
 
   it('checks the gotoSilentLogin', async () => {

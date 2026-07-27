@@ -115,7 +115,6 @@ Add the `WATCHPACK_POLLING=true` environment variable to the frontend-developmen
        target: impress-dev
        args:
          API_ORIGIN: "http://localhost:8071"
-         PUBLISH_AS_MIT: "false"
          SW_DEACTIVATED: "true"
      image: impress:frontend-development
      environment:

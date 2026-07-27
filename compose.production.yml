@@ -1,0 +1,212 @@
+name: mapledocs
+
+x-app-build: &app-build
+  context: .
+  args:
+    DOCKER_USER: ${APP_CONTAINER_UID:-1000}
+
+x-app-environment: &app-environment
+  DJANGO_CONFIGURATION: Production
+  DB_HOST: postgresql
+  DB_PORT: 5432
+  DB_NAME: ${POSTGRES_DB}
+  DB_USER: ${POSTGRES_USER}
+  DB_PASSWORD: ${POSTGRES_PASSWORD}
+  AWS_S3_ENDPOINT_URL: http://minio:9000
+  AWS_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+  AWS_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+  AWS_STORAGE_BUCKET_NAME: ${BUCKET_NAME}
+  Y_PROVIDER_API_BASE_URL: http://y-provider:4444/api/
+  COLLABORATION_API_URL: http://y-provider:4444/collaboration/api/
+  ONLYOFFICE_DOCUMENT_SERVER_INTERNAL_URL: http://onlyoffice
+  ONLYOFFICE_CALLBACK_BASE_URL: http://backend:8000
+
+x-backend-service: &backend-service
+  image: mapledocs-backend:local
+  build:
+    <<: *app-build
+    target: backend-production
+  env_file:
+    - ./deploy/production.env
+  environment:
+    <<: *app-environment
+  init: true
+
+services:
+  postgresql:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server --console-address :9001 /data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+    volumes:
+      - minio_data:/data
+
+  create-bucket:
+    image: minio/mc:latest
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      BUCKET_NAME: ${BUCKET_NAME}
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command:
+      - -ec
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing "local/$${BUCKET_NAME}"
+        mc version enable "local/$${BUCKET_NAME}"
+
+  onlyoffice:
+    image: onlyoffice/documentserver:8.3
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_HEADER: AuthorizationJwt
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_lib:/var/lib/onlyoffice
+      - onlyoffice_database:/var/lib/postgresql
+
+  migrate:
+    <<: *backend-service
+    restart: "no"
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
+  backend:
+    <<: *backend-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check"]
+      interval: 15s
+      timeout: 30s
+      retries: 20
+      start_period: 20s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      create-bucket:
+        condition: service_completed_successfully
+      onlyoffice:
+        condition: service_started
+
+  celery:
+    <<: *backend-service
+    restart: unless-stopped
+    command: ["celery", "-A", "impress.celery_app", "worker", "--loglevel=INFO"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      create-bucket:
+        condition: service_completed_successfully
+
+  y-provider:
+    image: mapledocs-y-provider:local
+    build:
+      context: .
+      dockerfile: ./src/frontend/servers/y-provider/Dockerfile
+      target: y-provider
+      args:
+        DOCKER_USER: ${APP_CONTAINER_UID:-1000}
+    restart: unless-stopped
+    init: true
+    environment:
+      COLLABORATION_BACKEND_BASE_URL: http://backend:8000
+      COLLABORATION_LOGGING: ${COLLABORATION_LOGGING}
+      COLLABORATION_SERVER_ORIGIN: ${COLLABORATION_SERVER_ORIGIN}
+      COLLABORATION_SERVER_SECRET: ${COLLABORATION_SERVER_SECRET}
+      CONVERSION_FILE_MAX_SIZE: ${CONVERSION_FILE_MAX_SIZE}
+      Y_PROVIDER_API_KEY: ${Y_PROVIDER_API_KEY}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  frontend:
+    image: mapledocs-frontend:local
+    build:
+      context: .
+      dockerfile: ./src/frontend/Dockerfile
+      target: frontend-production
+      args:
+        DOCKER_USER: 101
+    user: "101:101"
+    restart: unless-stopped
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["nginx", "-g", "daemon off;"]
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST}
+      BUCKET_NAME: ${BUCKET_NAME}
+      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE}
+      FRONTEND_HOST: ${FRONTEND_HOST}
+      ONLYOFFICE_HOST: ${ONLYOFFICE_HOST}
+      S3_HOST: ${S3_HOST}
+      S3_INTERNAL_URL: ${S3_INTERNAL_URL}
+      YPROVIDER_HOST: ${YPROVIDER_HOST}
+    ports:
+      - "${MAPLEDOCS_HTTP_BIND:-127.0.0.1}:${MAPLEDOCS_HTTP_PORT:-8083}:8083"
+    volumes:
+      - ./docker/files/production/etc/nginx/conf.d/default.conf.template:/etc/nginx/templates/mapledocs.conf.template:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      y-provider:
+        condition: service_started
+      onlyoffice:
+        condition: service_started
+
+volumes:
+  postgresql_data:
+  redis_data:
+  minio_data:
+  onlyoffice_logs:
+  onlyoffice_data:
+  onlyoffice_lib:
+  onlyoffice_database:

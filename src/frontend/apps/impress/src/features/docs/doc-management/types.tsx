@@ -48,6 +48,8 @@ export enum LinkRole {
 
 export type Base64 = string;
 
+export type DocumentFileType = 'markdown' | 'doc' | 'docx';
+
 export interface Doc {
   id: string;
   title?: string;
@@ -69,11 +71,15 @@ export interface Doc {
   ancestors_link_role?: LinkRole;
   numchild: number;
   updated_at: string;
+  file_type: DocumentFileType;
+  source_name: string;
+  source_mime_type: string;
+  source_size: number;
+  source_revision: number;
   user_role: Role;
   abilities: {
     accesses_manage: boolean;
     accesses_view: boolean;
-    ai_proxy: boolean;
     ai_transform: boolean;
     ai_translate: boolean;
     attachment_upload: boolean;
@@ -84,6 +90,7 @@ export interface Doc {
     content_patch: boolean;
     content_retrieve: boolean;
     destroy: boolean;
+    download: boolean;
     duplicate: boolean;
     favorite: boolean;
     formatted_content: boolean;
@@ -93,6 +100,7 @@ export interface Doc {
     link_select_options: LinkSelectOption;
     media_auth: boolean;
     move: boolean;
+    office_config: boolean;
     partial_update: boolean;
     restore: boolean;
     retrieve: boolean;

@@ -1,5 +1,3 @@
-import { useTranslation } from 'react-i18next';
-
 import { Text, TextType } from '@/components/';
 
 type TitleSemanticsProps = TextType & {
@@ -11,8 +9,6 @@ export const Title = ({
   headingLevel = 'h2',
   ...props
 }: TitleSemanticsProps) => {
-  const { t } = useTranslation();
-
   return (
     <Text
       className={`--docs--title${props.className ? ` ${props.className}` : ''}`}
@@ -21,11 +17,11 @@ export const Title = ({
       $margin="none"
       as={headingLevel}
       $zIndex={1}
-      $size="1.375rem"
+      $size="1.125rem"
       $color="var(--c--contextuals--content--logo1)"
       {...props}
     >
-      {t('Docs')}
+      MapleDocs
     </Text>
   );
 };

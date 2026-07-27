@@ -2,7 +2,6 @@
 Tests for Documents API endpoint in impress's core app: create with file upload
 """
 
-from base64 import b64decode, binascii
 from io import BytesIO
 from unittest.mock import patch
 
@@ -40,11 +39,10 @@ def test_api_documents_create_with_file_anonymous():
     assert not Document.objects.exists()
 
 
-@patch("core.services.converter_services.Converter.convert")
-def test_api_documents_create_with_docx_file_success(mock_convert, settings):
+def test_api_documents_create_with_docx_file_success(settings):
     """
     Authenticated users should be able to create documents by uploading a DOCX file.
-    The file should be converted to YJS format and the title should be set from filename.
+    The original file is preserved for ONLYOFFICE and is never converted to Yjs.
     """
     user = factories.UserFactory()
     client = APIClient()
@@ -52,16 +50,16 @@ def test_api_documents_create_with_docx_file_success(mock_convert, settings):
 
     settings.CONVERSION_UPLOAD_ENABLED = True
 
-    # Mock the conversion
-    converted_yjs = "base64encodedyjscontent"
-    mock_convert.return_value = converted_yjs
-
     # Create a fake DOCX file
     file_content = b"fake docx content"
     file = BytesIO(file_content)
     file.name = "My Important Document.docx"
 
-    with patch("core.api.viewsets.posthog_capture") as mock_capture:
+    with (
+        patch("core.api.viewsets.posthog_capture") as mock_capture,
+        patch("core.services.converter_services.Converter.convert") as mock_convert,
+        patch.object(Document, "save_source_file") as mock_save_source,
+    ):
         response = client.post(
             "/api/v1.0/documents/",
             {
@@ -72,15 +70,18 @@ def test_api_documents_create_with_docx_file_success(mock_convert, settings):
 
     assert response.status_code == 201
     document = Document.objects.get()
-    assert document.title == "My Important Document.docx"
-    assert document.content == converted_yjs
+    assert document.title == "My Important Document"
+    assert document.file_type == "docx"
+    assert document.source_name == "My Important Document.docx"
+    assert document.source_sha256
     assert document.accesses.filter(role="owner", user=user).exists()
 
-    # Verify the converter was called correctly
-    mock_convert.assert_called_once_with(
+    mock_convert.assert_not_called()
+    mock_save_source.assert_called_once_with(
         file_content,
-        content_type=mime_types.DOCX,
-        accept=mime_types.YJS,
+        "My Important Document.docx",
+        mime_types.DOCX,
+        "docx",
     )
 
     # The successful conversion should be tracked in PostHog
@@ -154,7 +155,10 @@ def test_api_documents_create_with_markdown_file_success(mock_convert, settings)
     file = BytesIO(file_content)
     file.name = "readme.md"
 
-    with patch("core.api.viewsets.posthog_capture") as mock_capture:
+    with (
+        patch("core.api.viewsets.posthog_capture") as mock_capture,
+        patch.object(Document, "save_source_file") as mock_save_source,
+    ):
         response = client.post(
             "/api/v1.0/documents/",
             {
@@ -165,7 +169,9 @@ def test_api_documents_create_with_markdown_file_success(mock_convert, settings)
 
     assert response.status_code == 201
     document = Document.objects.get()
-    assert document.title == "readme.md"
+    assert document.title == "readme"
+    assert document.file_type == "markdown"
+    assert document.source_name == "readme.md"
     assert document.content == converted_yjs
     assert document.accesses.filter(role="owner", user=user).exists()
 
@@ -174,6 +180,12 @@ def test_api_documents_create_with_markdown_file_success(mock_convert, settings)
         file_content,
         content_type=mime_types.MARKDOWN,
         accept=mime_types.YJS,
+    )
+    mock_save_source.assert_called_once_with(
+        file_content,
+        "readme.md",
+        mime_types.MARKDOWN,
+        "markdown",
     )
 
     # The successful conversion should be tracked in PostHog
@@ -192,8 +204,7 @@ def test_api_documents_create_with_markdown_file_success(mock_convert, settings)
     assert mock_capture.call_count == 2
 
 
-@patch("core.services.converter_services.Converter.convert")
-def test_api_documents_create_with_file_and_explicit_title(mock_convert, settings):
+def test_api_documents_create_with_file_and_explicit_title(settings):
     """
     When both file and title are provided, the filename should override the title.
     """
@@ -203,16 +214,16 @@ def test_api_documents_create_with_file_and_explicit_title(mock_convert, setting
 
     settings.CONVERSION_UPLOAD_ENABLED = True
 
-    # Mock the conversion
-    converted_yjs = "base64encodedyjscontent"
-    mock_convert.return_value = converted_yjs
-
     # Create a fake DOCX file
     file_content = b"fake docx content"
     file = BytesIO(file_content)
     file.name = "Uploaded Document.docx"
 
-    with patch("core.api.viewsets.posthog_capture") as mock_capture:
+    with (
+        patch("core.api.viewsets.posthog_capture") as mock_capture,
+        patch("core.services.converter_services.Converter.convert") as mock_convert,
+        patch.object(Document, "save_source_file"),
+    ):
         response = client.post(
             "/api/v1.0/documents/",
             {
@@ -225,7 +236,9 @@ def test_api_documents_create_with_file_and_explicit_title(mock_convert, setting
     assert response.status_code == 201
     document = Document.objects.get()
     # The filename should take precedence
-    assert document.title == "Uploaded Document.docx"
+    assert document.title == "Uploaded Document"
+    assert document.file_type == "docx"
+    mock_convert.assert_not_called()
 
     # The successful conversion should be tracked in PostHog
     mock_capture.assert_any_call(
@@ -287,10 +300,10 @@ def test_api_documents_create_with_file_conversion_error(mock_convert, settings)
     # Mock the conversion to raise an error
     mock_convert.side_effect = ConversionError("Failed to convert document")
 
-    # Create a fake DOCX file
-    file_content = b"fake invalid docx content"
+    # Markdown conversion is the only import path that uses the converter.
+    file_content = b"# invalid markdown"
     file = BytesIO(file_content)
-    file.name = "corrupted.docx"
+    file.name = "corrupted.md"
 
     with patch("core.api.viewsets.posthog_capture") as mock_capture:
         response = client.post(
@@ -325,10 +338,10 @@ def test_api_documents_create_with_file_service_unavailable(mock_convert, settin
         "Failed to connect to conversion service"
     )
 
-    # Create a fake DOCX file
-    file_content = b"fake docx content"
+    # Markdown conversion is the only import path that uses the converter.
+    file_content = b"# unavailable"
     file = BytesIO(file_content)
-    file.name = "document.docx"
+    file.name = "document.md"
 
     with patch("core.api.viewsets.posthog_capture") as mock_capture:
         response = client.post(
@@ -412,29 +425,23 @@ def test_api_documents_create_with_file_null_value(mock_convert, settings):
     )
 
 
-@patch("core.services.converter_services.Converter.convert")
-def test_api_documents_create_with_file_preserves_content_format(
-    mock_convert, settings
-):
-    """
-    Verify that the converted content is stored correctly in the document.
-    """
+def test_api_documents_create_with_doc_file_preserves_content_format(settings):
+    """A legacy DOC import remains DOC and preserves its original bytes."""
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)
 
     settings.CONVERSION_UPLOAD_ENABLED = True
 
-    # Mock the conversion with realistic base64-encoded YJS data
-    converted_yjs = "AQMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICA="
-    mock_convert.return_value = converted_yjs
-
-    # Create a fake DOCX file
-    file_content = b"fake docx with complex formatting"
+    file_content = b"fake binary doc with complex formatting"
     file = BytesIO(file_content)
-    file.name = "complex_document.docx"
+    file.name = "complex_document.doc"
 
-    with patch("core.api.viewsets.posthog_capture") as mock_capture:
+    with (
+        patch("core.api.viewsets.posthog_capture") as mock_capture,
+        patch("core.services.converter_services.Converter.convert") as mock_convert,
+        patch.object(Document, "save_source_file") as mock_save_source,
+    ):
         response = client.post(
             "/api/v1.0/documents/",
             {
@@ -445,15 +452,22 @@ def test_api_documents_create_with_file_preserves_content_format(
 
     assert response.status_code == 201
     document = Document.objects.get()
-
-    # Verify the content is stored as returned by the converter
-    assert document.content == converted_yjs
+    assert document.title == "complex_document"
+    assert document.file_type == "doc"
+    assert document.source_name == "complex_document.doc"
+    mock_convert.assert_not_called()
+    mock_save_source.assert_called_once_with(
+        file_content,
+        "complex_document.doc",
+        mime_types.DOC,
+        "doc",
+    )
 
     # The successful conversion should be tracked in PostHog
     mock_capture.assert_any_call(
         PosthogEventName.DOC_IMPORTED,
         user,
-        {"content_type": mime_types.DOCX},
+        {"content_type": mime_types.DOC},
     )
     mock_capture.assert_any_call(
         PosthogEventName.DOC_CREATED,
@@ -464,15 +478,8 @@ def test_api_documents_create_with_file_preserves_content_format(
 
     assert mock_capture.call_count == 2
 
-    # Verify it's valid base64 (can be decoded)
-    try:
-        b64decode(converted_yjs)
-    except binascii.Error:
-        pytest.fail("Content should be valid base64-encoded data")
 
-
-@patch("core.services.converter_services.Converter.convert")
-def test_api_documents_create_with_file_unicode_filename(mock_convert, settings):
+def test_api_documents_create_with_file_unicode_filename(settings):
     """
     Test that Unicode characters in filenames are handled correctly.
     """
@@ -482,16 +489,16 @@ def test_api_documents_create_with_file_unicode_filename(mock_convert, settings)
 
     settings.CONVERSION_UPLOAD_ENABLED = True
 
-    # Mock the conversion
-    converted_yjs = "base64encodedyjscontent"
-    mock_convert.return_value = converted_yjs
-
     # Create a file with Unicode characters in the name
     file_content = b"fake docx content"
     file = BytesIO(file_content)
     file.name = "文档-télécharger-документ.docx"
 
-    with patch("core.api.viewsets.posthog_capture") as mock_capture:
+    with (
+        patch("core.api.viewsets.posthog_capture") as mock_capture,
+        patch("core.services.converter_services.Converter.convert") as mock_convert,
+        patch.object(Document, "save_source_file"),
+    ):
         response = client.post(
             "/api/v1.0/documents/",
             {
@@ -502,7 +509,9 @@ def test_api_documents_create_with_file_unicode_filename(mock_convert, settings)
 
     assert response.status_code == 201
     document = Document.objects.get()
-    assert document.title == "文档-télécharger-документ.docx"
+    assert document.title == "文档-télécharger-документ"
+    assert document.source_name == "文档-télécharger-документ.docx"
+    mock_convert.assert_not_called()
 
     # The successful conversion should be tracked in PostHog
     mock_capture.assert_any_call(
@@ -580,3 +589,74 @@ def test_api_documents_create_with_file_extension_not_allowed(settings):
     }
 
     mock_capture.assert_not_called()
+
+
+def test_api_documents_import_exact_duplicate_requires_resolution(settings):
+    """An identical owned source returns a structured 409 conflict."""
+    settings.CONVERSION_UPLOAD_ENABLED = True
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    first = BytesIO(b"same docx bytes")
+    first.name = "Quarterly report.docx"
+    duplicate = BytesIO(b"same docx bytes")
+    duplicate.name = "Quarterly report.docx"
+
+    with (
+        patch("core.api.viewsets.posthog_capture"),
+        patch.object(Document, "save_source_file"),
+    ):
+        created = client.post("/api/v1.0/documents/", {"file": first}, format="multipart")
+        conflict = client.post(
+            "/api/v1.0/documents/", {"file": duplicate}, format="multipart"
+        )
+
+    assert created.status_code == 201
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "exact_duplicate"
+    assert conflict.json()["existing_document"]["id"] == created.json()["id"]
+    assert Document.objects.count() == 1
+
+
+@pytest.mark.parametrize(
+    ("strategy", "expected_status", "expected_count", "expected_title"),
+    [
+        ("skip", "skipped", 1, "Notes"),
+        ("keep_both", "created", 2, "Notes (2)"),
+        ("replace", "replaced", 1, "Notes"),
+    ],
+)
+def test_api_documents_import_conflict_strategies(
+    settings, strategy, expected_status, expected_count, expected_title
+):
+    """Every conflict choice has a deterministic result and never overwrites implicitly."""
+    settings.CONVERSION_UPLOAD_ENABLED = True
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    first = BytesIO(b"first version")
+    first.name = "Notes.docx"
+    second = BytesIO(b"second version")
+    second.name = "Notes.docx"
+
+    with (
+        patch("core.api.viewsets.posthog_capture"),
+        patch.object(Document, "save_source_file") as mock_save_source,
+    ):
+        created = client.post("/api/v1.0/documents/", {"file": first}, format="multipart")
+        resolved = client.post(
+            "/api/v1.0/documents/",
+            {"file": second, "conflict_strategy": strategy},
+            format="multipart",
+        )
+
+    assert created.status_code == 201
+    assert resolved.status_code in {200, 201}
+    assert resolved.json()["import_status"] == expected_status
+    assert resolved.json()["title"] == expected_title
+    assert Document.objects.count() == expected_count
+    if strategy == "replace":
+        assert resolved.json()["id"] == created.json()["id"]
+        assert mock_save_source.call_args.args[0] == b"second version"

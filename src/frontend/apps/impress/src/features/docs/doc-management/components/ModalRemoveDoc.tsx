@@ -11,10 +11,12 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { Box, ButtonCloseModal, Text, TextErrors } from '@/components';
 import { useConfig } from '@/core';
+import { KEY_LIST_SEARCH_DOC } from '@/docs/doc-search/api/useSearchDocs';
+import { KEY_LIST_DOC_CHILDREN } from '@/docs/doc-tree/api/useDocChildren';
 import { KEY_LIST_DOC_TRASHBIN } from '@/docs/docs-grid';
 import { useKeyboardAction } from '@/hooks';
 
-import { KEY_DOC } from '../api';
+import { KEY_DOC, KEY_LIST_FAVORITE_DOC } from '../api';
 import { KEY_LIST_DOC } from '../api/useDocs';
 import { useRemoveDoc } from '../api/useRemoveDoc';
 import { useDocUtils } from '../hooks';
@@ -43,7 +45,14 @@ export const ModalRemoveDoc = ({
     isError,
     error,
   } = useRemoveDoc({
-    listInvalidQueries: [KEY_LIST_DOC, KEY_LIST_DOC_TRASHBIN, KEY_DOC],
+    listInvalidQueries: [
+      KEY_LIST_DOC,
+      KEY_LIST_FAVORITE_DOC,
+      KEY_LIST_SEARCH_DOC,
+      KEY_LIST_DOC_CHILDREN,
+      KEY_LIST_DOC_TRASHBIN,
+      KEY_DOC,
+    ],
     options: {
       onSuccess: () => {
         if (onSuccess) {

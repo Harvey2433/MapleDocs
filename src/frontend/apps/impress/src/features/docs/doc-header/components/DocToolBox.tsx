@@ -10,6 +10,7 @@ import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { baseApiUrl } from '@/api';
 import AddLinkSVG from '@/assets/icons/ui-kit/add_link.svg';
 import ContentCopySVG from '@/assets/icons/ui-kit/content_copy.svg';
 import DeleteSVG from '@/assets/icons/ui-kit/delete.svg';
@@ -72,17 +73,6 @@ const ConfirmationLeaveModal = dynamic(
   { ssr: false },
 );
 
-const ModalExport =
-  process.env.NEXT_PUBLIC_PUBLISH_AS_MIT === 'false'
-    ? dynamic(
-        () =>
-          import('@/docs/doc-export/components/ModalExport').then((mod) => ({
-            default: mod.ModalExport,
-          })),
-        { ssr: false },
-      )
-    : null;
-
 interface DocToolBoxProps {
   doc: Doc;
 }
@@ -97,7 +87,6 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
   const copyCurrentEditorToClipboard = useCopyCurrentEditorToClipboard();
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isModalRemoveOpen, setIsModalRemoveOpen] = useState(false);
-  const [isModalExportOpen, setIsModalExportOpen] = useState(false);
   const [isModalShareOpen, setIsModalShareOpen] = useState(false);
   const [isModalHistoryOpen, setIsModalHistoryOpen] = useState(false);
   const [isModalLeaveOpen, setIsModalLeaveOpen] = useState(false);
@@ -165,9 +154,16 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
       label: t('Download'),
       icon: <DownloadSVG width={24} height={24} aria-hidden="true" />,
       callback: () => {
-        setIsModalExportOpen(true);
+        const anchor = document.createElement('a');
+        anchor.href = `${baseApiUrl()}documents/${doc.id}/download/`;
+        anchor.download =
+          doc.source_name ||
+          `${doc.title || 'document'}.${doc.file_type === 'markdown' ? 'md' : doc.file_type}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
       },
-      isHidden: !ModalExport,
+      isHidden: !doc.abilities.download,
     },
     {
       label: t('Copy as {{format}}', { format: 'Markdown' }),
@@ -247,15 +243,6 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
         />
       </DropdownMenu>
 
-      {isModalExportOpen && ModalExport && (
-        <ModalExport
-          onClose={() => {
-            setIsModalExportOpen(false);
-            restoreFocus();
-          }}
-          doc={doc}
-        />
-      )}
       {isModalRemoveOpen && (
         <ModalRemoveDoc
           onClose={() => {

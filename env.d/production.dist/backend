@@ -35,6 +35,10 @@ AWS_STORAGE_BUCKET_NAME=${BUCKET_NAME}
 MEDIA_BASE_URL=https://${DOCS_HOST}
 
 # OIDC
+OIDC_ENABLED=false
+LOCAL_AUTH_ENABLED=true
+LOCAL_AUTH_REGISTRATION_ENABLED=true
+# Set OIDC_ENABLED=true only when the provider values below are configured.
 OIDC_OP_JWKS_ENDPOINT=https://${KEYCLOAK_HOST}/realms/${REALM_NAME}/protocol/openid-connect/certs
 OIDC_OP_AUTHORIZATION_ENDPOINT=https://${KEYCLOAK_HOST}/realms/${REALM_NAME}/protocol/openid-connect/auth
 OIDC_OP_TOKEN_ENDPOINT=https://${KEYCLOAK_HOST}/realms/${REALM_NAME}/protocol/openid-connect/token
@@ -53,12 +57,20 @@ LOGOUT_REDIRECT_URL=https://${DOCS_HOST}
 
 OIDC_REDIRECT_ALLOWED_HOSTS=["https://${DOCS_HOST}"]
 
+# Documents
+CONVERSION_UPLOAD_ENABLED=true
+CONVERSION_FILE_EXTENSIONS_ALLOWED=[".doc",".docx",".md"]
+COMMENTS_ENABLED=false
+ONLYOFFICE_ENABLED=true
+ONLYOFFICE_DOCUMENT_SERVER_URL=https://${DOCS_HOST}/onlyoffice
+ONLYOFFICE_DOCUMENT_SERVER_INTERNAL_URL=http://onlyoffice
+ONLYOFFICE_CALLBACK_BASE_URL=http://backend:8000
+
 # User reconciliation
 #USER_RECONCILIATION_FORM_URL=https://${DOCS_HOST}
 
 # AI
 #AI_FEATURE_ENABLED=true # is false by default
-#AI_FEATURE_BLOCKNOTE_ENABLED=true # is false by default
 #AI_FEATURE_LEGACY_ENABLED=true # is true by default, AI_FEATURE_ENABLED must be set to true to enable it
 #AI_BASE_URL=https://openaiendpoint.com
 #AI_API_KEY=<API key>

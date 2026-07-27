@@ -10,7 +10,10 @@ import { useIsOffline } from '@/features/service-worker';
 import { toBase64 } from '@/utils/string';
 import { isFirefox } from '@/utils/userAgent';
 
-const SAVE_INTERVAL = 60000;
+const SAVE_INTERVAL = 30000;
+const SAVE_DEBOUNCE = 1200;
+
+export type DocumentSaveState = 'saved' | 'unsaved' | 'saving' | 'error';
 
 export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
   /**
@@ -22,15 +25,18 @@ export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
 
   const { isOffline } = useIsOffline();
   const isSavingRef = useRef(false);
+  const [saveState, setSaveState] = useState<DocumentSaveState>('saved');
   const { mutate: updateDocContent } = useDocContentUpdate({
     listInvalidQueries: [KEY_LIST_DOC_VERSIONS],
     isOptimistic: isOffline, // Enable optimistic updates when offline, to update the cache immediately
     onSuccess: () => {
       isSavingRef.current = false;
       setIsLocalChange(false);
+      setSaveState('saved');
     },
     onError: () => {
       isSavingRef.current = false;
+      setSaveState('error');
     },
   });
   const [isLocalChange, setIsLocalChange] = useState<boolean>(false);
@@ -76,7 +82,11 @@ export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
         return;
       }
 
-      setIsLocalChange(transaction.local || isAIChange);
+      const changedLocally = transaction.local || isAIChange;
+      setIsLocalChange(changedLocally);
+      if (changedLocally) {
+        setSaveState('unsaved');
+      }
     };
 
     yDoc.on('update', onUpdate);
@@ -92,6 +102,7 @@ export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
     }
 
     isSavingRef.current = true;
+    setSaveState('saving');
     updateDocContent({
       id: docId,
       content: toBase64(Y.encodeStateAsUpdate(yDoc)),
@@ -102,6 +113,14 @@ export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
   }, [isLocalChange, updateDocContent, docId, yDoc, isConnectedToCollabServer]);
 
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLocalChange || isSavingRef.current) {
+      return;
+    }
+    const timeout = window.setTimeout(saveDoc, SAVE_DEBOUNCE);
+    return () => window.clearTimeout(timeout);
+  }, [isLocalChange, saveDoc]);
 
   useEffect(() => {
     const onSave = (e?: Event) => {
@@ -124,7 +143,7 @@ export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
       }
     };
 
-    // Save every minute
+    // Periodic fallback in addition to the idle debounce.
     const timeout = setInterval(onSave, SAVE_INTERVAL);
     // Save when the user leaves the page
     addEventListener('beforeunload', onSave);
@@ -138,4 +157,6 @@ export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
       router.events.off('routeChangeStart', onSave);
     };
   }, [router.events, saveDoc]);
+
+  return saveState;
 };

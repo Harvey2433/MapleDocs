@@ -461,6 +461,9 @@ def test_api_users_retrieve_me_authenticated():
         "language": user.language,
         "short_name": user.short_name,
         "is_first_connection": True,
+        "appearance": {},
+        "avatar_url": None,
+        "background_image_url": None,
     }
 
 
@@ -491,6 +494,9 @@ def test_api_users_retrieve_me_authenticated_empty_name():
         "language": user.language,
         "short_name": "test_foo",
         "is_first_connection": True,
+        "appearance": {},
+        "avatar_url": None,
+        "background_image_url": None,
     }
 
 
@@ -631,8 +637,7 @@ def test_api_users_update_anonymous():
 
 def test_api_users_update_authenticated_self():
     """
-    Authenticated users should be able to update their own user but only "language"
-    and "timezone" fields.
+    Authenticated users should be able to update their own profile fields.
     """
     user = factories.UserFactory()
 
@@ -654,7 +659,7 @@ def test_api_users_update_authenticated_self():
     user.refresh_from_db()
     user_values = dict(serializers.UserSerializer(instance=user).data)
     for key, value in user_values.items():
-        if key in ["language", "timezone"]:
+        if key in ["language", "full_name", "short_name", "appearance"]:
             assert value == new_user_values[key]
         else:
             assert value == old_user_values[key]
@@ -712,8 +717,7 @@ def test_api_users_patch_anonymous():
 
 def test_api_users_patch_authenticated_self():
     """
-    Authenticated users should be able to patch their own user but only "language"
-    and "timezone" fields.
+    Authenticated users should be able to patch their own profile fields.
     """
     user = factories.UserFactory()
 
@@ -736,10 +740,72 @@ def test_api_users_patch_authenticated_self():
     user.refresh_from_db()
     user_values = dict(serializers.UserSerializer(instance=user).data)
     for key, value in user_values.items():
-        if key in ["language", "timezone"]:
+        if key in ["language", "full_name", "short_name", "appearance"]:
             assert value == new_user_values[key]
         else:
             assert value == old_user_values[key]
+
+
+def test_api_users_patch_profile_and_appearance_persists():
+    """Profile and global appearance settings are stored on the authenticated user."""
+
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    appearance = {
+        "theme_mode": "dark",
+        "accent": "#12A4C8",
+        "surface_opacity": 58,
+        "material": "acrylic",
+        "material_strength": 76,
+        "background_source": "url",
+        "background_url": "https://images.example.net/daily.png?size=large",
+        "background_refresh_minutes": 60,
+    }
+
+    response = client.patch(
+        f"/api/v1.0/users/{user.id!s}/",
+        {"full_name": "Maple User", "appearance": appearance},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    user.refresh_from_db()
+    assert user.full_name == "Maple User"
+    assert user.short_name == "Maple User"
+    assert user.appearance == appearance
+    assert response.json()["appearance"] == appearance
+
+
+@pytest.mark.parametrize(
+    "appearance",
+    [
+        {"theme_mode": "midnight"},
+        {"accent": "rgb(10, 20, 30)"},
+        {"surface_opacity": 101},
+        {"material": "glass"},
+        {"material_strength": -1},
+        {"background_refresh_minutes": 10},
+        {"background_url": "javascript:alert(1)"},
+        {"unknown_setting": True},
+    ],
+)
+def test_api_users_patch_rejects_invalid_appearance(appearance):
+    """Invalid or unsafe appearance documents never replace the saved preferences."""
+
+    user = factories.UserFactory(appearance={"theme_mode": "light"})
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.patch(
+        f"/api/v1.0/users/{user.id!s}/",
+        {"appearance": appearance},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    user.refresh_from_db()
+    assert user.appearance == {"theme_mode": "light"}
 
 
 def test_api_users_patch_authenticated_other():

@@ -47,6 +47,14 @@ class RoleChoices(PriorityTextChoices):
     OWNER = "owner", _("Owner")
 
 
+class DocumentFileTypeChoices(TextChoices):
+    """Editing engine and source format used by a document."""
+
+    MARKDOWN = "markdown", _("Markdown")
+    DOC = "doc", _("Microsoft Word 97-2003")
+    DOCX = "docx", _("Microsoft Word")
+
+
 PRIVILEGED_ROLES = [RoleChoices.ADMIN, RoleChoices.OWNER]
 
 

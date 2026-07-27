@@ -19,6 +19,21 @@ services:
   redis:
     image: redis:5
 
+  onlyoffice:
+    image: onlyoffice/documentserver:8.3
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-mapledocs-local-onlyoffice-secret}
+      JWT_HEADER: AuthorizationJwt
+    ports:
+      - "8082:80"
+    volumes:
+      - ./data/onlyoffice/logs:/var/log/onlyoffice
+      - ./data/onlyoffice/data:/var/www/onlyoffice/Data
+      - ./data/onlyoffice/lib:/var/lib/onlyoffice
+      - ./data/onlyoffice/database:/var/lib/postgresql
+
   mailcatcher:
     image: sj26/mailcatcher:latest
     ports:
@@ -67,6 +82,15 @@ services:
     environment:
       - PYLINTHOME=/app/.pylint.d
       - DJANGO_CONFIGURATION=Development
+      - OIDC_ENABLED=false
+      - LOCAL_AUTH_ENABLED=true
+      - LOCAL_AUTH_REGISTRATION_ENABLED=true
+      - COMMENTS_ENABLED=false
+      - ONLYOFFICE_ENABLED=true
+      - ONLYOFFICE_DOCUMENT_SERVER_URL=http://localhost:8082
+      - ONLYOFFICE_DOCUMENT_SERVER_INTERNAL_URL=http://onlyoffice
+      - ONLYOFFICE_CALLBACK_BASE_URL=http://app-dev:8000
+      - ONLYOFFICE_JWT_SECRET=${ONLYOFFICE_JWT_SECRET:-mapledocs-local-onlyoffice-secret}
     env_file:
       - env.d/development/common
       - env.d/development/common.local
@@ -90,6 +114,8 @@ services:
       mailcatcher:
         condition: service_started
       redis:
+        condition: service_started
+      onlyoffice:
         condition: service_started
       createbuckets:
         condition: service_started
@@ -129,9 +155,6 @@ services:
     depends_on:
       app-dev:
         condition: service_started
-      keycloak:
-        condition: service_healthy
-        restart: true
 
   nginx-frontend:
     image: nginx:1.25
@@ -141,9 +164,8 @@ services:
       - ./src/frontend/apps/impress/conf/default.conf:/etc/nginx/conf.d/impress.conf
       - ./src/frontend/apps/impress/out:/app
     depends_on:
-      keycloak:
-        condition: service_healthy
-        restart: true
+      app-dev:
+        condition: service_started
 
   frontend-development:
     user: "${DOCKER_USER:-1000}"
@@ -153,7 +175,6 @@ services:
       target: impress-dev
       args:
         API_ORIGIN: "http://localhost:8071"
-        PUBLISH_AS_MIT: "false"
         SW_DEACTIVATED: "true"
     image: impress:frontend-development
     volumes:
@@ -215,6 +236,7 @@ services:
         condition: service_started
 
   kc_postgresql:
+    profiles: ["oidc"]
     image: postgres:14.3
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
@@ -228,6 +250,7 @@ services:
       - env.d/development/kc_postgresql.local
 
   keycloak:
+    profiles: ["oidc"]
     image: quay.io/keycloak/keycloak:26.3
     volumes:
       - ./docker/auth/realm.json:/opt/keycloak/data/import/realm.json

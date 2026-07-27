@@ -1,5 +1,4 @@
 import { Button } from '@gouvfr-lasuite/cunningham-react';
-import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
@@ -11,7 +10,6 @@ import {
   StyledLink,
 } from '@/components';
 import { Title } from '@/components/Title';
-import { useConfig } from '@/core';
 import { NewDocButton } from '@/docs/doc-management/components/NewDocButton';
 import { DocSearchButtonModal } from '@/docs/doc-search/components/DocSearchButtonModal';
 import { useAuth } from '@/features/auth';
@@ -21,10 +19,8 @@ import { useResponsiveStore } from '@/stores';
 import { useLeftPanelStore } from '../stores';
 
 export const LeftPanelHeader = () => {
-  const { data: config } = useConfig();
   const { isMobile } = useResponsiveStore();
   const { closePanel } = useLeftPanelStore();
-  const icon = config?.theme_customization?.header?.icon;
 
   return (
     <Box $width="100%" className="--docs--left-panel-header">
@@ -54,20 +50,7 @@ export const LeftPanelHeader = () => {
             $height="fit-content"
             $margin={{ top: 'auto' }}
           >
-            {icon && (
-              <Image
-                data-testid="header-icon-docs"
-                width={0}
-                height={0}
-                priority
-                {...(({ withTitle: _, ...rest }) => rest)(icon)}
-              />
-            )}
-            <Title
-              headingLevel="h1"
-              className={icon?.withTitle ? undefined : 'sr-only'}
-              $size="1.8rem"
-            />
+            <Title headingLevel="h1" $size="1.125rem" />
           </Box>
         </StyledLink>
         {isMobile && (

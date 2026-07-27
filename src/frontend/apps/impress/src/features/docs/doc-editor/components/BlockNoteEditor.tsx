@@ -25,7 +25,6 @@ import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 
 import { Box, TextErrors } from '@/components';
-import { useConfig } from '@/core';
 import { useCunninghamTheme } from '@/cunningham';
 import {
   DocsCommentsStyle,
@@ -35,9 +34,8 @@ import {
 import { Doc } from '@/docs/doc-management';
 import { avatarUrlFromName, useAuth } from '@/features/auth';
 import { useRightPanelStore } from '@/features/right-panel/stores/useRightPanelStore';
-import { useAnalytics } from '@/libs/Analytics';
 
-import { AI_FEATURE_FLAG, DEFAULT_LOCALE } from '../conf';
+import { DEFAULT_LOCALE } from '../conf';
 import {
   useHeadings,
   useSaveDoc,
@@ -50,19 +48,10 @@ import { DocsEditorStyle } from '../styles';
 import { DocsBlockNoteEditor } from '../types';
 import { randomColor, sanitizeColor } from '../utils';
 
-import BlockNoteAI from './AI';
 import { BlockNoteSuggestionMenu } from './BlockNoteSuggestionMenu';
 import { BlockNoteToolbar } from './BlockNoteToolBar/BlockNoteToolbar';
 import { CalloutBlock, PdfBlock, UploadLoaderBlock } from './custom-blocks';
-const AIMenu = BlockNoteAI?.AIMenu;
-const AIMenuController = BlockNoteAI?.AIMenuController;
-const useAI = BlockNoteAI?.useAI;
-const localesBNAI = BlockNoteAI?.localesAI || {};
 import { InterlinkingLinkInlineContent } from './custom-inline-content';
-import XLMultiColumn from './xl-multi-column';
-
-const localesBNMultiColumn = XLMultiColumn?.locales;
-const withMultiColumn = XLMultiColumn?.withMultiColumn;
 
 const baseBlockNoteSchema = withPageBreak(
   BlockNoteSchema.create({
@@ -80,8 +69,7 @@ const baseBlockNoteSchema = withPageBreak(
   }),
 );
 
-export const blockNoteSchema = (withMultiColumn?.(baseBlockNoteSchema) ||
-  baseBlockNoteSchema) as typeof baseBlockNoteSchema;
+export const blockNoteSchema = baseBlockNoteSchema;
 
 interface BlockNoteEditorProps {
   doc: Doc;
@@ -93,34 +81,14 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
   const { setEditor } = useEditorStore();
   const { themeTokens } = useCunninghamTheme();
   const refEditorContainer = useRef<HTMLDivElement>(null);
-  useSaveDoc(doc.id, provider.document);
+  const saveState = useSaveDoc(doc.id, provider.document);
 
   const { i18n, t } = useTranslation();
   const langLocalesBN =
     !i18n.resolvedLanguage || !(i18n.resolvedLanguage in localesBN)
       ? DEFAULT_LOCALE
       : i18n.resolvedLanguage;
-  const langLocalesBNMultiColumn =
-    !i18n.resolvedLanguage ||
-    !localesBNMultiColumn ||
-    !(i18n.resolvedLanguage in localesBNMultiColumn)
-      ? DEFAULT_LOCALE
-      : i18n.resolvedLanguage;
-  const langLocalesBNAI =
-    !i18n.resolvedLanguage || !(i18n.resolvedLanguage in localesBNAI)
-      ? DEFAULT_LOCALE
-      : i18n.resolvedLanguage;
-
   const { uploadFile, errorAttachment } = useUploadFile(doc.id);
-  const conf = useConfig().data;
-  const { isFeatureFlagActivated } = useAnalytics();
-  const aiBlockNoteAllowed = !!(
-    conf?.AI_FEATURE_ENABLED &&
-    conf?.AI_FEATURE_BLOCKNOTE_ENABLED &&
-    isFeatureFlagActivated(AI_FEATURE_FLAG) &&
-    doc.abilities?.ai_proxy
-  );
-  const aiExtension = useAI?.(doc.id, aiBlockNoteAllowed);
 
   const collabName = user?.full_name || user?.email;
   const cursorName = collabName || t('Anonymous');
@@ -197,13 +165,6 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
       },
       dictionary: {
         ...localesBN[langLocalesBN as keyof typeof localesBN],
-        ...(localesBNMultiColumn && {
-          multi_column:
-            localesBNMultiColumn[
-              langLocalesBNMultiColumn as keyof typeof localesBNMultiColumn
-            ],
-          ai: localesBNAI?.[langLocalesBNAI as keyof typeof localesBNAI],
-        }),
       },
       pasteHandler: ({ event, defaultPasteHandler }) => {
         // Get clipboard data
@@ -225,10 +186,7 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
 
         return defaultPasteHandler();
       },
-      extensions: [
-        CommentsExtension({ threadStore, resolveUsers }),
-        ...(aiExtension ? [aiExtension] : []),
-      ],
+      extensions: [CommentsExtension({ threadStore, resolveUsers })],
       visualMedia: {
         image: {
           maxWidth: 760,
@@ -245,11 +203,8 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
       schema: blockNoteSchema,
     },
     [
-      aiExtension,
       cursorName,
       langLocalesBN,
-      langLocalesBNMultiColumn,
-      langLocalesBNAI,
       provider,
       uploadFile,
       threadStore,
@@ -272,7 +227,13 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
   }, [setEditor, editor]);
 
   return (
-    <Box ref={refEditorContainer} $height="100%">
+    <Box ref={refEditorContainer} $height="100%" $position="relative">
+      <Box className="maple-save-state" aria-live="polite">
+        {saveState === 'unsaved' && t('Unsaved changes')}
+        {saveState === 'saving' && t('Saving...')}
+        {saveState === 'saved' && t('Saved')}
+        {saveState === 'error' && t('Save failed')}
+      </Box>
       <DocsEditorStyle />
       <DocsCommentsStyle
         canSeeComment={canSeeComment}
@@ -298,11 +259,8 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
         // To not clipped the floating part in the editor area
         portalElements={{ default: null }}
       >
-        {aiBlockNoteAllowed && AIMenuController && AIMenu && (
-          <AIMenuController aiMenu={AIMenu} />
-        )}
-        <BlockNoteSuggestionMenu aiAllowed={aiBlockNoteAllowed} />
-        <BlockNoteToolbar aiAllowed={aiBlockNoteAllowed} />
+        <BlockNoteSuggestionMenu />
+        <BlockNoteToolbar />
         {showComments && <FloatingComposerController />}
         {showComments && !isCommentSideBarOpen && <FloatingThreadController />}
         {threadsSidebarTarget &&
@@ -386,7 +344,7 @@ export const BlockNoteReader = ({
         slashMenu={false}
         comments={false}
       >
-        <BlockNoteToolbar aiAllowed={false} />
+        <BlockNoteToolbar />
       </BlockNoteView>
     </Box>
   );

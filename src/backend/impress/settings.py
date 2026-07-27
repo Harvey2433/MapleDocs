@@ -425,6 +425,11 @@ class Base(Configuration):
             "lasuite.drf.throttling.MonitoredScopedRateThrottle",
         ],
         "DEFAULT_THROTTLE_RATES": {
+            "auth": values.Value(
+                default="20/minute",
+                environ_name="AUTH_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
             "user_list_sustained": values.Value(
                 default="180/hour",
                 environ_name="API_USERS_LIST_THROTTLE_RATE_SUSTAINED",
@@ -880,21 +885,12 @@ class Base(Configuration):
     AI_FEATURE_ENABLED = values.BooleanValue(
         default=False, environ_name="AI_FEATURE_ENABLED", environ_prefix=None
     )
-    # Far better UI but more flaky for the moment
-    # ⚠️ AGPL license, be sure to comply with the Blocknote license
-    # if you enable it (https://www.blocknotejs.org/)
-    AI_FEATURE_BLOCKNOTE_ENABLED = values.BooleanValue(
-        default=False, environ_name="AI_FEATURE_BLOCKNOTE_ENABLED", environ_prefix=None
-    )
     # UI with less features but more stable
     # MIT friendly license, you can enable it without worrying about the license
     AI_FEATURE_LEGACY_ENABLED = values.BooleanValue(
         default=True, environ_name="AI_FEATURE_LEGACY_ENABLED", environ_prefix=None
     )
     AI_MODEL = values.Value(None, environ_name="AI_MODEL", environ_prefix=None)
-    AI_VERCEL_SDK_VERSION = values.IntegerValue(
-        6, environ_name="AI_VERCEL_SDK_VERSION", environ_prefix=None
-    )
     AI_USER_RATE_THROTTLE_RATES = {
         "minute": 3,
         "hour": 50,
@@ -926,7 +922,7 @@ class Base(Configuration):
 
     # Imported file settings
     CONVERSION_UPLOAD_ENABLED = values.BooleanValue(
-        False, environ_name="CONVERSION_UPLOAD_ENABLED", environ_prefix=None
+        True, environ_name="CONVERSION_UPLOAD_ENABLED", environ_prefix=None
     )
     CONVERSION_FILE_MAX_SIZE = values.IntegerValue(
         20 * MB,
@@ -935,9 +931,61 @@ class Base(Configuration):
     )
 
     CONVERSION_FILE_EXTENSIONS_ALLOWED = values.ListValue(
-        default=[".docx", ".md"],
+        default=[".doc", ".docx", ".md"],
         environ_name="CONVERSION_FILE_EXTENSIONS_ALLOWED",
         environ_prefix=None,
+    )
+
+    USER_IMAGE_MAX_SIZE = values.IntegerValue(
+        10 * MB, environ_name="USER_IMAGE_MAX_SIZE", environ_prefix=None
+    )
+    COMMENTS_ENABLED = values.BooleanValue(
+        False, environ_name="COMMENTS_ENABLED", environ_prefix=None
+    )
+    OIDC_ENABLED = values.BooleanValue(
+        False, environ_name="OIDC_ENABLED", environ_prefix=None
+    )
+    LOCAL_AUTH_ENABLED = values.BooleanValue(
+        True, environ_name="LOCAL_AUTH_ENABLED", environ_prefix=None
+    )
+    LOCAL_AUTH_REGISTRATION_ENABLED = values.BooleanValue(
+        True,
+        environ_name="LOCAL_AUTH_REGISTRATION_ENABLED",
+        environ_prefix=None,
+    )
+    ONLYOFFICE_ENABLED = values.BooleanValue(
+        True, environ_name="ONLYOFFICE_ENABLED", environ_prefix=None
+    )
+    ONLYOFFICE_DOCUMENT_SERVER_URL = values.Value(
+        "http://localhost:8082",
+        environ_name="ONLYOFFICE_DOCUMENT_SERVER_URL",
+        environ_prefix=None,
+    )
+    ONLYOFFICE_DOCUMENT_SERVER_INTERNAL_URL = values.Value(
+        "http://localhost:8082",
+        environ_name="ONLYOFFICE_DOCUMENT_SERVER_INTERNAL_URL",
+        environ_prefix=None,
+    )
+    ONLYOFFICE_CALLBACK_BASE_URL = values.Value(
+        "",
+        environ_name="ONLYOFFICE_CALLBACK_BASE_URL",
+        environ_prefix=None,
+    )
+    ONLYOFFICE_TOKEN_TTL_SECONDS = values.IntegerValue(
+        12 * 60 * 60,
+        environ_name="ONLYOFFICE_TOKEN_TTL_SECONDS",
+        environ_prefix=None,
+    )
+    ONLYOFFICE_JWT_SECRET = SecretFileValue(
+        default="change-me",
+        environ_name="ONLYOFFICE_JWT_SECRET",
+        environ_prefix=None,
+    )
+    ONLYOFFICE_FILE_MAX_SIZE = values.IntegerValue(
+        100 * MB, environ_name="ONLYOFFICE_FILE_MAX_SIZE", environ_prefix=None
+    )
+    ONLYOFFICE_REQUEST_TIMEOUT = values.IntegerValue(
+        30, environ_name="ONLYOFFICE_REQUEST_TIMEOUT", environ_prefix=None
     )
 
     # Conversion endpoint
@@ -1155,6 +1203,20 @@ class Base(Configuration):
         """
         super().post_setup()
 
+        if not cls.OIDC_ENABLED:
+            cls.AUTHENTICATION_BACKENDS = [
+                "django.contrib.auth.backends.ModelBackend"
+            ]
+
+        if (
+            cls.__name__ == "Production"
+            and cls.ONLYOFFICE_ENABLED
+            and len(str(cls.ONLYOFFICE_JWT_SECRET)) < 32
+        ):
+            raise ValueError(
+                "ONLYOFFICE_JWT_SECRET must contain at least 32 characters in production."
+            )
+
         # The SENTRY_DSN setting should be available to activate sentry for an environment
         if cls.SENTRY_DSN is not None:
             sentry_sdk.init(
@@ -1225,6 +1287,7 @@ class Build(Base):
     """
 
     SECRET_KEY = values.Value("DummyKey")
+    DOCKERFLOW_CHECKS = []
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -1346,15 +1409,27 @@ class Production(Base):
     SECURE_HSTS_SECONDS = 60
     SECURE_HSTS_PRELOAD = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = values.BooleanValue(
+        True,
+        environ_name="DJANGO_SECURE_SSL_REDIRECT",
+        environ_prefix=None,
+    )
     SECURE_REDIRECT_EXEMPT = [
         "^__lbheartbeat__",
         "^__heartbeat__",
     ]
 
     # Modern browsers require to have the `secure` attribute on cookies with `Samesite=none`
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = values.BooleanValue(
+        True,
+        environ_name="DJANGO_CSRF_COOKIE_SECURE",
+        environ_prefix=None,
+    )
+    SESSION_COOKIE_SECURE = values.BooleanValue(
+        True,
+        environ_name="DJANGO_SESSION_COOKIE_SECURE",
+        environ_prefix=None,
+    )
     SESSION_CACHE_ALIAS = "session"
 
     # Privacy

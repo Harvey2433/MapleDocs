@@ -132,20 +132,6 @@ Docs supports Kubernetes, Docker Compose, and community-provided methods such as
 
 Get started with self-hosting: [Installation guide](documentation/installation/README.md)
 
-> [!WARNING]
-> Some advanced features (for example: `Export as PDF`) rely on XL packages from Blocknote.
-> These packages are licensed under GPL and are **not MIT-compatible**
->
-> You can run Docs **without these packages** by building with:
->
-> ```bash
-> PUBLISH_AS_MIT=true
-> ```
->
-> This builds an image of Docs without non-MIT features.
->
-> More details can be found in [environment variables](documentation/env.md)
-
 ## Local Development (for contributors)
 
 Run Docs locally for development and testing.

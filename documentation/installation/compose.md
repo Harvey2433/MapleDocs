@@ -1,12 +1,17 @@
 # Installation with docker compose
 
+For this fork's single-server setup, including PostgreSQL, Redis, MinIO,
+ONLYOFFICE and the collaboration server, use the
+[production deployment guide](../../deploy/README.md). It builds the current
+working tree and publishes only a loopback gateway for the host Nginx.
+
 We provide a sample configuration for running Docs using Docker Compose. Please note that this configuration is experimental, and the official way to deploy Docs in production is to use [k8s](../installation/kubernetes.md)
 
 ## Requirements
 
 - A modern version of Docker and its Compose plugin.
 - A domain name and DNS configured to your server.
-- An Identity Provider that supports OpenID Connect protocol - we provide [an example to deploy Keycloak](../examples/compose/keycloak/README.md).
+- An OpenID Connect provider is optional. Local accounts are enabled by default; Keycloak remains available for deployments that need centralized identity.
 - An Object Storage that implements S3 API - we provide [an example to deploy Minio](../examples/compose/minio/README.md).
 - A Postgresql database - we provide [an example in the compose file](../examples/compose/compose.yaml).
 - A Redis database - we provide [an example in the compose file](../examples/compose/compose.yaml).
@@ -59,7 +64,9 @@ In this example, we assume the following services:
 
 ### OIDC
 
-Authentication in Docs is managed through Open ID Connect protocol. A functional Identity Provider implementing this protocol is required.
+Local email/password accounts are enabled by default. Set `LOCAL_AUTH_ENABLED=true` and choose whether self-registration is allowed with `LOCAL_AUTH_REGISTRATION_ENABLED`.
+
+OpenID Connect is optional. Set `OIDC_ENABLED=true` only when the provider values below are configured.
 
 For guidance, refer to our [Keycloak deployment example](../examples/compose/keycloak/README.md).
 
@@ -138,7 +145,6 @@ AI is disabled by default. To enable it, the following environment variables mus
 
 ```env
 AI_FEATURE_ENABLED=true # is false by default
-AI_FEATURE_BLOCKNOTE_ENABLED=true # is false by default
 AI_FEATURE_LEGACY_ENABLED=true # is true by default, AI_FEATURE_ENABLED must be set to true to enable it 
 AI_BASE_URL=https://openaiendpoint.com
 AI_API_KEY=<API key>

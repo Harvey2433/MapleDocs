@@ -9,11 +9,8 @@ import dynamic from 'next/dynamic';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useConfig } from '@/core/config/api';
 import { CommentToolbarButton } from '@/docs/doc-comments/components/CommentToolbarButton';
 
-import BlockNoteAI from '../AI/';
-import { AIGroupButton } from '../AI/AIButtonMIT';
 import { getCalloutFormattingToolbarItems } from '../custom-blocks';
 
 import { FileDownloadButton } from './FileDownloadButton';
@@ -27,14 +24,11 @@ const ModalConfirmDownloadUnsafe = dynamic(
   { ssr: false },
 );
 
-const AIToolbarButton = BlockNoteAI?.AIToolbarButton;
-
-export const BlockNoteToolbar = ({ aiAllowed }: { aiAllowed: boolean }) => {
+export const BlockNoteToolbar = () => {
   const dict = useDictionary();
   const [confirmOpen, setIsConfirmOpen] = useState(false);
   const [onConfirm, setOnConfirm] = useState<() => void | Promise<void>>();
   const { t } = useTranslation();
-  const { data: conf } = useConfig();
 
   const toolbarItems = useMemo(() => {
     let toolbarItems = getFormattingToolbarItems([
@@ -84,23 +78,11 @@ export const BlockNoteToolbar = ({ aiAllowed }: { aiAllowed: boolean }) => {
 
         <CommentToolbarButton />
 
-        {aiAllowed && AIToolbarButton && <AIToolbarButton />}
-
-        {/* Extra button to do some AI powered actions - only if AIToolbarButton is not available because of MIT license */}
-        {conf?.AI_FEATURE_ENABLED && conf?.AI_FEATURE_LEGACY_ENABLED && (
-          <AIGroupButton key="AIButton" />
-        )}
-
         {/* Extra button to convert from markdown to json */}
         <MarkdownButton key="customButton" />
       </FormattingToolbar>
     );
-  }, [
-    toolbarItems,
-    aiAllowed,
-    conf?.AI_FEATURE_ENABLED,
-    conf?.AI_FEATURE_LEGACY_ENABLED,
-  ]);
+  }, [toolbarItems]);
 
   return (
     <>

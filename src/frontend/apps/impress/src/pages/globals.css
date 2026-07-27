@@ -5,10 +5,361 @@
 @import url('@fontsource-variable/inter');
 @import url('@gouvfr-lasuite/ui-kit/fonts/Marianne');
 
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('/fonts/HarmonyOS_Sans_SC_Regular.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --maple-accent: #1f6f54;
+  --maple-surface-opacity: 0.72;
+  --maple-material-strength: 18px;
+  --maple-surface-rgb: 248, 250, 249;
+  --maple-text: #15211d;
+  --maple-text-muted: #52615b;
+  --maple-border: rgb(40 61 53 / 16%);
+
+  color-scheme: light;
+
+  --c--contextuals--background--semantic--brand--primary: var(--maple-accent);
+  --c--contextuals--background--semantic--brand--primary-hover: color-mix(
+    in srgb,
+    var(--maple-accent),
+    #000 14%
+  );
+  --c--contextuals--background--palette--brand--primary: var(--maple-accent);
+  --c--contextuals--content--semantic--brand--primary: var(--maple-accent);
+  --c--contextuals--content--palette--brand--primary: var(--maple-accent);
+  --c--contextuals--border--semantic--brand--primary: var(--maple-accent);
+}
+
+:root[data-theme='dark'] {
+  --maple-surface-rgb: 24, 29, 28;
+  --maple-text: #f2f6f4;
+  --maple-text-muted: #bdc9c4;
+  --maple-border: rgb(226 238 233 / 18%);
+
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  font-family: 'HarmonyOS Sans SC', sans-serif;
+  color: var(--maple-text);
+  background: rgb(var(--maple-surface-rgb));
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: 'HarmonyOS Sans SC', sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+[role='button'],
+nav,
+.maple-top-actions {
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bn-editor,
+.bn-editor *,
+textarea,
+input {
+  user-select: text;
+}
+
+.maple-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  background: rgb(var(--maple-surface-rgb));
+}
+
+.maple-wallpaper > div {
+  position: absolute;
+  inset: -2px;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scale(1.015);
+  transition:
+    opacity 620ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.maple-wallpaper > div:first-child,
+.maple-wallpaper > div.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* stylelint-disable selector-id-pattern */
+body,
+#__next,
+#__next > .c__app,
+.--docs--main-layout {
+  background: transparent !important;
+}
+/* stylelint-enable selector-id-pattern */
+
+.--docs--left-panel,
+.--docs--home-header,
+.--docs--doc-editor-header,
+.--docs--editor-container,
+.--docs--doc-grid > div,
+main.--docs--main-content,
+main[role='main'] {
+  color: var(--maple-text) !important;
+  background: rgb(
+    var(--maple-surface-rgb),
+    var(--maple-surface-opacity)
+  ) !important;
+  border-color: var(--maple-border) !important;
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.24);
+}
+
+:root[data-material='gaussian'] .--docs--left-panel,
+:root[data-material='gaussian'] main[role='main'],
+:root[data-material='gaussian'] .--docs--editor-container,
+:root[data-material='gaussian'] .--docs--doc-grid > div {
+  backdrop-filter: blur(var(--maple-material-strength));
+}
+
+:root[data-material='acrylic'] .--docs--left-panel,
+:root[data-material='acrylic'] main[role='main'],
+:root[data-material='acrylic'] .--docs--editor-container,
+:root[data-material='acrylic'] .--docs--doc-grid > div {
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.55)
+    contrast(1.04);
+}
+
+:root[data-theme='dark'] body,
+:root[data-theme='dark'] .c__app,
+:root[data-theme='dark'] .bn-container,
+:root[data-theme='dark'] .bn-editor {
+  color: var(--maple-text);
+}
+
+:root[data-theme='dark'] .bn-editor {
+  background: transparent;
+}
+
+.maple-top-actions {
+  position: fixed;
+  top: 14px;
+  right: 18px;
+  z-index: 40;
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--maple-border);
+  border-radius: 7px;
+  background: rgb(var(--maple-surface-rgb), var(--maple-surface-opacity));
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.2);
+}
+
+.maple-top-actions button {
+  width: 34px;
+  height: 34px;
+}
+
+.maple-settings fieldset {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--maple-border);
+  border-radius: 6px;
+}
+
+.maple-settings legend {
+  padding: 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.maple-settings label {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--maple-text-muted);
+  font-size: 0.84rem;
+}
+
+.maple-settings label > input[type='range'] {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--maple-accent);
+}
+
+.maple-settings input,
+.maple-settings select {
+  min-width: 0;
+  padding: 8px;
+  color: var(--maple-text);
+  border: 1px solid var(--maple-border);
+  border-radius: 5px;
+  background: rgb(var(--maple-surface-rgb), 0.58);
+}
+
+.maple-segments {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 6px;
+  background: rgb(127 127 127 / 12%);
+}
+
+.maple-segments button {
+  min-height: 34px;
+  color: var(--maple-text-muted);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.maple-segments button[data-active='true'] {
+  color: #fff;
+  background: var(--maple-accent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+}
+
+.maple-swatches,
+.maple-color-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.maple-swatches button,
+.maple-swatches input[type='color'] {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.maple-swatches button[data-active='true'] {
+  outline: 2px solid var(--maple-text);
+  outline-offset: 2px;
+}
+
+.maple-color-inputs label {
+  display: flex;
+  flex: 1 1 92px;
+}
+
+.maple-color-inputs input {
+  width: 82px;
+}
+
+.maple-profile-avatar {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.maple-profile-copy {
+  min-width: 0;
+  max-width: 138px;
+}
+
+.maple-profile-copy > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maple-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(var(--maple-surface-rgb), 0.38);
+}
+
+.maple-login > section {
+  width: min(100%, 390px);
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid var(--maple-border);
+  border-radius: 8px;
+  background: rgb(var(--maple-surface-rgb), var(--maple-surface-opacity));
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.2);
+}
+
+.maple-login form,
+.maple-login label {
+  display: grid;
+  gap: 8px;
+}
+
+.maple-login form {
+  gap: 14px;
+}
+
+.maple-login input,
+.maple-profile-copy + input {
+  min-height: 40px;
+  padding: 8px 10px;
+  color: var(--maple-text);
+  border: 1px solid var(--maple-border);
+  border-radius: 5px;
+  background: rgb(var(--maple-surface-rgb), 0.7);
+}
+
+.maple-save-state {
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  width: fit-content;
+  min-height: 28px;
+  margin-left: auto;
+  margin-right: 16px;
+  padding: 5px 9px;
+  color: var(--maple-text-muted);
+  font-size: 0.75rem;
+  border: 1px solid var(--maple-border);
+  border-radius: 5px;
+  background: rgb(var(--maple-surface-rgb), 0.68);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 460ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 /* stylelint-disable-next-line selector-id-pattern */

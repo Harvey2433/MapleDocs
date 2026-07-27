@@ -922,8 +922,6 @@ dependencies = [
     { name = "posthog" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pycrdt" },
-    { name = "pydantic" },
-    { name = "pydantic-ai-slim", extra = ["logfire", "openai", "web"] },
     { name = "pyjwt" },
     { name = "python-magic" },
     { name = "redis" },
@@ -999,8 +997,6 @@ requires-dist = [
     { name = "posthog", specifier = "==7.16.1" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = "==3.3.3" },
     { name = "pycrdt", specifier = "==0.12.50" },
-    { name = "pydantic", specifier = "==2.13.3" },
-    { name = "pydantic-ai-slim", extras = ["openai", "logfire", "web"], specifier = "==1.58.0" },
     { name = "pyfakefs", marker = "extra == 'dev'", specifier = "==6.2.0" },
     { name = "pyjwt", specifier = "==2.13.0" },
     { name = "pylint", marker = "extra == 'dev'", specifier = "<4.0.0" },
@@ -1771,38 +1767,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d9/e4/40d09941a2cebcb20609b86a559817d5b9291c49dd6f8c87e5feffbe703a/pydantic-2.13.3.tar.gz", hash = "sha256:af09e9d1d09f4e7fe37145c1f577e1d61ceb9a41924bf0094a36506285d0a84d", size = 844068, upload-time = "2026-04-20T14:46:43.632Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f3/0a/fd7d723f8f8153418fb40cf9c940e82004fce7e987026b08a68a36dd3fe7/pydantic-2.13.3-py3-none-any.whl", hash = "sha256:6db14ac8dfc9a1e57f87ea2c0de670c251240f43cb0c30a5130e9720dc612927", size = 471981, upload-time = "2026-04-20T14:46:41.402Z" },
-]
-
-[[package]]
-name = "pydantic-ai-slim"
-version = "1.58.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "genai-prices" },
-    { name = "griffe" },
-    { name = "httpx" },
-    { name = "opentelemetry-api" },
-    { name = "pydantic" },
-    { name = "pydantic-graph" },
-    { name = "typing-inspection" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/14/5e/964df8db1e7e47fce0fed14bbe4445aae4e8ec72b8e113935d3476bf2021/pydantic_ai_slim-1.58.0.tar.gz", hash = "sha256:8f13086aaa046c759ddc36c14593f95c15fb09df1c3998e690df3c79732931dc", size = 415339, upload-time = "2026-02-11T01:46:03.286Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/4a/b29b7d2dad4ce6af053206474457c16a978aa974182bf6925e1b282704eb/pydantic_ai_slim-1.58.0-py3-none-any.whl", hash = "sha256:077e2d3ac95f8121a8988808674400be0c3e5f88e7e3cd30b317fe50096b2935", size = 542309, upload-time = "2026-02-11T01:45:55.65Z" },
-]
-
-[package.optional-dependencies]
-logfire = [
-    { name = "logfire", extra = ["httpx"] },
-]
-openai = [
-    { name = "openai" },
-    { name = "tiktoken" },
-]
-web = [
-    { name = "httpx" },
-    { name = "starlette" },
-    { name = "uvicorn" },
 ]
 
 [[package]]

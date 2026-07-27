@@ -9,12 +9,7 @@ import {
 } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import {
-  APIError,
-  UseInfiniteQueryResultAPI,
-  errorCauses,
-  fetchAPI,
-} from '@/api';
+import { APIError, UseInfiniteQueryResultAPI, fetchAPI } from '@/api';
 
 import { Doc } from '../types';
 
@@ -26,10 +21,15 @@ interface ContentType {
 }
 
 export const ContentTypes: {
+  Doc: ContentType;
   Docx: ContentType;
   Markdown: ContentType;
   OctetStream: ContentType;
 } = {
+  Doc: {
+    mime: 'application/msword',
+    extensions: ['.doc'],
+  },
   Docx: {
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     extensions: ['.docx'],
@@ -44,10 +44,24 @@ export const ContentTypes: {
   },
 };
 
-export const importDoc = async ([file, mimeType]: [
+export type ImportConflictStrategy = 'ask' | 'skip' | 'keep_both' | 'replace';
+export type ImportedDoc = Doc & {
+  import_status: 'created' | 'skipped' | 'replaced';
+};
+export interface ImportConflict {
+  code: 'exact_duplicate' | 'name_conflict';
+  detail: string;
+  existing_document: Pick<
+    Doc,
+    'id' | 'title' | 'file_type' | 'source_name' | 'updated_at'
+  >;
+}
+
+export const importDoc = async ([file, mimeType, strategy = 'ask']: [
   File,
   string,
-]): Promise<Doc> => {
+  ImportConflictStrategy?,
+]): Promise<ImportedDoc> => {
   const form = new FormData();
 
   form.append(
@@ -57,6 +71,7 @@ export const importDoc = async ([file, mimeType]: [
       lastModified: file.lastModified,
     }),
   );
+  form.append('conflict_strategy', strategy);
 
   const response = await fetchAPI(`documents/`, {
     method: 'POST',
@@ -65,26 +80,41 @@ export const importDoc = async ([file, mimeType]: [
   });
 
   if (!response.ok) {
-    throw new APIError('Failed to import the doc', await errorCauses(response));
+    const body = (await response.json()) as ImportConflict &
+      Record<string, unknown>;
+    throw new APIError<ImportConflict>('Failed to import the doc', {
+      status: response.status,
+      cause: typeof body.detail === 'string' ? [body.detail] : undefined,
+      data: body,
+    });
   }
 
-  return response.json() as Promise<Doc>;
+  return response.json() as Promise<ImportedDoc>;
 };
 
-type UseImportDocOptions = UseMutationOptions<Doc, APIError, [File, string]>;
+type ImportVariables = [File, string, ImportConflictStrategy?];
+type UseImportDocOptions = UseMutationOptions<
+  ImportedDoc,
+  APIError<ImportConflict>,
+  ImportVariables
+>;
 
 export function useImportDoc(props?: UseImportDocOptions) {
   const { toast } = useToastProvider();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
-  return useMutation<Doc, APIError, [File, string]>({
+  return useMutation<ImportedDoc, APIError<ImportConflict>, ImportVariables>({
     mutationFn: importDoc,
     ...props,
     onSuccess: (...successProps) => {
       const importedDoc = successProps[0];
 
       const updateDocsListCache = (isCreatorMe: boolean | undefined) => {
+        if (importedDoc.import_status === 'skipped') {
+          return;
+        }
+
         queryClient.setQueriesData<UseInfiniteQueryResultAPI<DocsResponse>>(
           {
             queryKey: [
@@ -103,17 +133,32 @@ export function useImportDoc(props?: UseImportDocOptions) {
               return oldData;
             }
 
+            const alreadyListed = oldData.pages.some((page) =>
+              page.results.some((doc) => doc.id === importedDoc.id),
+            );
+
             return {
               ...oldData,
               pages: oldData.pages.map((page, index) => {
-                // Add the new doc to the first page only
-                if (index === 0) {
-                  return {
-                    ...page,
-                    results: [importedDoc, ...page.results],
-                  };
+                let results = page.results;
+
+                if (importedDoc.import_status === 'replaced') {
+                  results = results.map((doc) =>
+                    doc.id === importedDoc.id ? importedDoc : doc,
+                  );
                 }
-                return page;
+
+                if (
+                  index === 0 &&
+                  (importedDoc.import_status === 'created' || !alreadyListed)
+                ) {
+                  results = [
+                    importedDoc,
+                    ...results.filter((doc) => doc.id !== importedDoc.id),
+                  ];
+                }
+
+                return results === page.results ? page : { ...page, results };
               }),
             };
           },
@@ -123,8 +168,14 @@ export function useImportDoc(props?: UseImportDocOptions) {
       updateDocsListCache(undefined);
       updateDocsListCache(true);
 
+      const messages = {
+        created:
+          'The document "{{documentName}}" has been successfully imported',
+        replaced: 'The document "{{documentName}}" has been replaced',
+        skipped: 'The document "{{documentName}}" was skipped',
+      } as const;
       toast(
-        t('The document "{{documentName}}" has been successfully imported', {
+        t(messages[importedDoc.import_status], {
           documentName: importedDoc.title || '',
         }),
         VariantType.SUCCESS,
@@ -133,6 +184,10 @@ export function useImportDoc(props?: UseImportDocOptions) {
       props?.onSuccess?.(...successProps);
     },
     onError: (...errorProps) => {
+      if (errorProps[0].status === 409) {
+        props?.onError?.(...errorProps);
+        return;
+      }
       toast(
         t(`The document "{{documentName}}" import has failed`, {
           documentName: errorProps?.[1][0].name || '',

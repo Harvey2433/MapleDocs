@@ -35,6 +35,7 @@ from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
 
 from core.choices import (
     PRIVILEGED_ROLES,
+    DocumentFileTypeChoices,
     LinkReachChoices,
     LinkRoleChoices,
     RoleChoices,
@@ -44,6 +45,20 @@ from core.utils.treebeard import create_tree_node_with_retry
 from core.validators import sub_validator
 
 logger = getLogger(__name__)
+
+
+def user_avatar_upload_to(instance, filename):
+    """Return a stable per-user storage path for avatars."""
+
+    extension = filename.rsplit(".", 1)[-1].lower()
+    return f"users/{instance.id}/avatar.{extension}"
+
+
+def user_background_upload_to(instance, filename):
+    """Return a stable per-user storage path for workspace backgrounds."""
+
+    extension = filename.rsplit(".", 1)[-1].lower()
+    return f"users/{instance.id}/background.{extension}"
 
 
 def get_trashbin_cutoff():
@@ -199,6 +214,21 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
         _("first connection status"),
         default=True,
         help_text=_("Whether the user has completed the first connection process."),
+    )
+    avatar = models.ImageField(
+        _("avatar"), upload_to=user_avatar_upload_to, null=True, blank=True
+    )
+    background_image = models.ImageField(
+        _("background image"),
+        upload_to=user_background_upload_to,
+        null=True,
+        blank=True,
+    )
+    appearance = models.JSONField(
+        _("appearance preferences"),
+        default=dict,
+        blank=True,
+        help_text=_("Per-user theme, color, material and background preferences."),
     )
 
     objects = UserManager()
@@ -969,6 +999,16 @@ class Document(MP_Node, BaseModel):
         blank=True,
         null=True,
     )
+    file_type = models.CharField(
+        max_length=16,
+        choices=DocumentFileTypeChoices.choices,
+        default=DocumentFileTypeChoices.MARKDOWN,
+    )
+    source_name = models.CharField(max_length=255, blank=True, default="")
+    source_mime_type = models.CharField(max_length=127, blank=True, default="")
+    source_size = models.PositiveBigIntegerField(default=0)
+    source_sha256 = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    source_revision = models.PositiveBigIntegerField(default=0)
 
     _content = None
 
@@ -1057,6 +1097,66 @@ class Document(MP_Node, BaseModel):
     def file_key(self):
         """Key of the object storage file to which the document content is stored"""
         return f"{self.key_base}/file"
+
+    @property
+    def source_file_key(self):
+        """Stable object storage key for the editable source file."""
+
+        return f"{self.key_base}/source"
+
+    def save_source_file(self, content, name, mime_type, file_type):
+        """Persist source bytes without changing the public filename."""
+
+        if not isinstance(content, bytes):
+            raise ValueError("source content should be bytes.")
+
+        digest = hashlib.sha256(content).hexdigest()
+        content_changed = (
+            self.source_revision == 0
+            or self.source_sha256 != digest
+            or self.file_type != file_type
+        )
+        metadata_changed = (
+            self.source_name != name
+            or self.source_mime_type != (mime_type or "application/octet-stream")
+            or self.source_size != len(content)
+        )
+        if not content_changed and not metadata_changed:
+            return
+
+        if content_changed:
+            default_storage.connection.meta.client.put_object(
+                Bucket=default_storage.bucket_name,
+                Key=self.source_file_key,
+                Body=content,
+                ContentType=mime_type or "application/octet-stream",
+            )
+        self.source_name = name
+        self.source_mime_type = mime_type or "application/octet-stream"
+        self.source_size = len(content)
+        self.source_sha256 = digest
+        self.file_type = file_type
+        if content_changed:
+            self.source_revision += 1
+        update_fields = [
+            "source_name",
+            "source_mime_type",
+            "source_size",
+            "source_sha256",
+            "source_revision",
+            "file_type",
+        ]
+        if content_changed:
+            update_fields.append("updated_at")
+        self.save(update_fields=update_fields)
+
+    def get_source_response(self):
+        """Return the current source file from object storage."""
+
+        return default_storage.connection.meta.client.get_object(
+            Bucket=default_storage.bucket_name,
+            Key=self.source_file_key,
+        )
 
     @property
     def content(self):
@@ -1358,7 +1458,11 @@ class Document(MP_Node, BaseModel):
         can_update = (
             is_owner_or_admin or role == RoleChoices.EDITOR
         ) and not is_deleted
-        can_comment = (can_update or role == RoleChoices.COMMENTER) and not is_deleted
+        can_comment = (
+            settings.COMMENTS_ENABLED
+            and (can_update or role == RoleChoices.COMMENTER)
+            and not is_deleted
+        )
         can_create_children = can_update and user.is_authenticated
         can_destroy = (
             is_owner
@@ -1381,7 +1485,6 @@ class Document(MP_Node, BaseModel):
         return {
             "accesses_manage": is_owner_or_admin,
             "accesses_view": has_access_role,
-            "ai_proxy": ai_access,
             "ai_transform": ai_access,
             "ai_translate": ai_access,
             "attachment_upload": can_update,
@@ -1398,11 +1501,15 @@ class Document(MP_Node, BaseModel):
             "descendants": can_get,
             "destroy": can_destroy,
             "duplicate": can_get and user.is_authenticated,
+            "download": retrieve,
             "favorite": can_get and user.is_authenticated,
             "link_configuration": is_owner_or_admin,
             "invite_owner": is_owner and not is_deleted,
             "leave": can_leave,
             "move": is_owner_or_admin and not is_deleted,
+            "office_config": can_get
+            and self.file_type
+            in {DocumentFileTypeChoices.DOC, DocumentFileTypeChoices.DOCX},
             "partial_update": can_update,
             "restore": is_owner and bool(self.deleted_at),
             "retrieve": retrieve,

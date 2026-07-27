@@ -65,7 +65,14 @@ urlpatterns = [
         include(
             [
                 *router.urls,
-                *oidc_urls,
+                *(
+                    oidc_urls
+                    if settings.OIDC_ENABLED
+                    else []
+                ),
+                path("auth/local/login/", viewsets.LocalLoginView.as_view()),
+                path("auth/local/register/", viewsets.LocalRegisterView.as_view()),
+                path("auth/local/logout/", viewsets.LocalLogoutView.as_view()),
                 re_path(
                     r"^documents/(?P<resource_id>[0-9a-z-]*)/",
                     include(document_related_router.urls),

@@ -17,24 +17,12 @@ import {
   DocsStyleSchema,
 } from '../types';
 
-import BlockNoteAI from './AI';
 import {
   getCalloutReactSlashMenuItems,
   getPdfReactSlashMenuItems,
 } from './custom-blocks';
 import { useGetInterlinkingMenuItems } from './custom-inline-content';
-import XLMultiColumn from './xl-multi-column';
-
-const getMultiColumnSlashMenuItems =
-  XLMultiColumn?.getMultiColumnSlashMenuItems;
-
-const getAISlashMenuItems = BlockNoteAI?.getAISlashMenuItems;
-
-export const BlockNoteSuggestionMenu = ({
-  aiAllowed,
-}: {
-  aiAllowed: boolean;
-}) => {
+export const BlockNoteSuggestionMenu = () => {
   const editor = useBlockNoteEditor<
     DocsBlockSchema,
     DocsInlineContentSchema,
@@ -54,10 +42,8 @@ export const BlockNoteSuggestionMenu = ({
     const combinedMenu = combineByGroup(
       defaultMenu,
       getPageBreakReactSlashMenuItems(editor),
-      getMultiColumnSlashMenuItems?.(editor) || [],
       getPdfReactSlashMenuItems(editor, t, fileBlocksName),
       getCalloutReactSlashMenuItems(editor, t, basicBlocksName),
-      aiAllowed && getAISlashMenuItems ? getAISlashMenuItems(editor) : [],
     );
 
     const index = combinedMenu.findIndex(
@@ -74,14 +60,7 @@ export const BlockNoteSuggestionMenu = ({
 
     return async (query: string) =>
       Promise.resolve(filterSuggestionItems(newSlashMenuItems, query));
-  }, [
-    editor,
-    t,
-    fileBlocksName,
-    basicBlocksName,
-    aiAllowed,
-    getInterlinkingMenuItems,
-  ]);
+  }, [editor, t, fileBlocksName, basicBlocksName, getInterlinkingMenuItems]);
 
   return (
     <SuggestionMenuController

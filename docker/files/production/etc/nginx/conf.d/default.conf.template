@@ -12,7 +12,7 @@ server {
     charset utf-8;
 
     # increase max upload size
-    client_max_body_size 10m;
+    client_max_body_size ${CLIENT_MAX_BODY_SIZE};
 
     # Disables server version feedback on pages and in headers
     server_tokens off;
@@ -22,6 +22,8 @@ server {
     location @proxy_to_docs_backend {
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
 
         proxy_redirect off;
         proxy_pass http://docs_backend;
@@ -30,6 +32,8 @@ server {
     location @proxy_to_docs_frontend {
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
 
         proxy_redirect off;
         proxy_pass http://docs_frontend;
@@ -55,6 +59,18 @@ server {
         try_files $uri @proxy_to_docs_backend;
     }
 
+    location /onlyoffice/ {
+        proxy_pass http://${ONLYOFFICE_HOST}/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
     # Proxy auth for collaboration server
     location /collaboration/ws/ {
         # Ensure WebSocket upgrade
@@ -70,7 +86,7 @@ server {
         proxy_send_timeout 86400;
 
         # Preserve original host and additional headers
-        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         proxy_set_header Origin $http_origin;
         proxy_set_header Host $host;
     }
@@ -95,10 +111,8 @@ server {
         proxy_set_header X-Amz-Content-SHA256 $authContentSha256;
 
         # Get resource from Minio
-        proxy_pass https://${S3_HOST}/${BUCKET_NAME}/;
+        proxy_pass ${S3_INTERNAL_URL}/${BUCKET_NAME}/;
         proxy_set_header Host ${S3_HOST};
-
-        proxy_ssl_name ${S3_HOST};
 
         add_header Content-Security-Policy "default-src 'none'" always;
     }

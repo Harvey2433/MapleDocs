@@ -17,6 +17,20 @@ services:
   redis:
     image: redis:8
 
+  onlyoffice:
+    image: onlyoffice/documentserver:8.3
+    restart: always
+    env_file:
+      - env.d/common
+    environment:
+      JWT_ENABLED: "true"
+      JWT_HEADER: AuthorizationJwt
+    volumes:
+      - ./data/onlyoffice/logs:/var/log/onlyoffice
+      - ./data/onlyoffice/data:/var/www/onlyoffice/Data
+      - ./data/onlyoffice/lib:/var/lib/onlyoffice
+      - ./data/onlyoffice/database:/var/lib/postgresql
+
   backend:
     image: lasuite/impress-backend:latest
     user: ${DOCKER_USER:-1000}
@@ -39,6 +53,8 @@ services:
         condition: service_healthy
         restart: true
       redis:
+        condition: service_started
+      onlyoffice:
         condition: service_started
 
   y-provider:
@@ -66,6 +82,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      onlyoffice:
+        condition: service_started
 
 # Uncomment if using our nginx proxy example
 #    networks:

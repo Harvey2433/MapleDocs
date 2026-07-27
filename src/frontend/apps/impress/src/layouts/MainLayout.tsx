@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
 import { Box, BoxType } from '@/components';
+import { AppearanceTopBar } from '@/features/appearance';
 import { LeftPanel, ResizableLeftPanel } from '@/features/left-panel';
 import { RightPanel } from '@/features/right-panel/components/RightPanel';
 import { DocEditorSkeleton, Skeleton } from '@/features/skeletons';
@@ -30,6 +31,7 @@ export function MainLayout({
       $height="100dvh"
       {...propsLayout}
     >
+      <AppearanceTopBar />
       <MainLayoutContent
         enableResizablePanel={enableResizablePanel}
         {...propsContent}

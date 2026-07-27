@@ -4,6 +4,7 @@
 
 import base64
 import datetime as dt
+import hashlib
 import ipaddress
 import json
 import logging
@@ -11,16 +12,18 @@ import socket
 import uuid
 from collections import defaultdict
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import unquote, urlencode, urlparse
 
 from django.conf import settings
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.search import TrigramSimilarity
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.validators import URLValidator
-from django.db import DatabaseError, connection, transaction
+from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db import models as db
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Greatest, Left, Length
@@ -41,7 +44,6 @@ from csp.constants import NONE
 from csp.decorators import csp_update
 from lasuite.malware_detection import malware_detection
 from lasuite.tools.email import get_domain_from_email
-from pydantic import ValidationError as PydanticValidationError
 from rest_framework import filters, status, viewsets
 from rest_framework import response as drf_response
 from rest_framework.permissions import AllowAny
@@ -51,7 +53,6 @@ from treebeard.exceptions import InvalidMoveToDescendant
 from core import authentication, choices, enums, models
 from core.api.filters import remove_accents
 from core.services import mime_types
-from core.services.ai_services.blocknote import AIService
 from core.services.ai_services.legacy import get_legacy_ai_service
 from core.services.collaboration_services import CollaborationService
 from core.services.converter_services import (
@@ -63,6 +64,13 @@ from core.services.converter_services import (
 )
 from core.services.converter_services import (
     ValidationError as YProviderValidationError,
+)
+from core.services.onlyoffice import (
+    OnlyOfficeError,
+    create_access_token,
+    download_callback_file,
+    sign_editor_config,
+    verify_access_token,
 )
 from core.services.search_indexers import (
     get_document_indexer,
@@ -91,6 +99,83 @@ from .throttling import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ImportConflictError(drf.exceptions.APIException):
+    """Return an actionable document import conflict."""
+
+    status_code = status.HTTP_409_CONFLICT
+    default_code = "import_conflict"
+    default_detail = "The imported file conflicts with an existing document."
+
+
+class LocalLoginView(APIView):
+    """Create a Django session for a local account."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_scope = "auth"
+
+    def post(self, request):
+        if not settings.LOCAL_AUTH_ENABLED:
+            raise Http404
+        serializer = serializers.LocalLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = authenticate(
+            request,
+            username=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+        )
+        if user is None or not user.is_active:
+            raise drf.exceptions.AuthenticationFailed("Invalid email or password.")
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        return drf.response.Response(
+            serializers.UserSerializer(user, context={"request": request}).data
+        )
+
+
+class LocalRegisterView(APIView):
+    """Create and log in a local account when self-registration is enabled."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_scope = "auth"
+
+    def post(self, request):
+        if not settings.LOCAL_AUTH_ENABLED or not settings.LOCAL_AUTH_REGISTRATION_ENABLED:
+            raise Http404
+        serializer = serializers.LocalRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+        try:
+            with transaction.atomic():
+                user = models.User(
+                    admin_email=email,
+                    email=email,
+                    full_name=serializer.validated_data["full_name"],
+                    short_name=serializer.validated_data["full_name"],
+                )
+                user.set_password(serializer.validated_data["password"])
+                user.save()
+        except IntegrityError as err:
+            raise drf.exceptions.ValidationError(
+                {"email": ["An account already uses this email."]}
+            ) from err
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        return drf.response.Response(
+            serializers.UserSerializer(user, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class LocalLogoutView(APIView):
+    """Delete the active local or OIDC-backed Django session."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        logout(request)
+        return drf.response.Response(status=status.HTTP_204_NO_CONTENT)
 
 # pylint: disable=too-many-ancestors
 
@@ -695,31 +780,112 @@ class DocumentViewSet(
         with the converted file and the file name.
         """
         uploaded_file = serializer.validated_data.pop("file", None)
+        conflict_strategy = serializer.validated_data.pop("conflict_strategy", "ask")
 
         if uploaded_file and not settings.CONVERSION_UPLOAD_ENABLED:
             raise drf.exceptions.ValidationError(
                 {"file": ["file upload is not allowed"]}
             )
 
-        # If a file is uploaded, convert it to Yjs format and set as content
+        serializer.source_file_data = None
+        serializer.import_conflict = None
+
+        # Imported files keep their editing format for every subsequent download.
         if uploaded_file:
             try:
                 file_content = uploaded_file.read()
+                extension = Path(uploaded_file.name).suffix.lower()
+                file_types = {
+                    ".md": choices.DocumentFileTypeChoices.MARKDOWN,
+                    ".doc": choices.DocumentFileTypeChoices.DOC,
+                    ".docx": choices.DocumentFileTypeChoices.DOCX,
+                }
+                mime_by_extension = {
+                    ".md": mime_types.MARKDOWN,
+                    ".doc": mime_types.DOC,
+                    ".docx": mime_types.DOCX,
+                }
+                if extension not in file_types:
+                    raise drf.exceptions.ValidationError(
+                        {"file": ["Only .md, .doc and .docx files are supported."]}
+                    )
+                file_type = file_types[extension]
+                content_type = mime_by_extension[extension]
+                digest = hashlib.sha256(file_content).hexdigest()
+                title = Path(uploaded_file.name).stem
 
-                converter = Converter()
-                converted_content = converter.convert(
-                    file_content,
-                    content_type=uploaded_file.content_type,
-                    accept=mime_types.YJS,
+                owned_documents = models.Document.objects.filter(
+                    ancestors_deleted_at__isnull=True,
+                    accesses__user=self.request.user,
+                    accesses__role=choices.RoleChoices.OWNER,
+                ).distinct()
+                exact_duplicate = owned_documents.filter(
+                    source_sha256=digest, file_type=file_type
+                ).first()
+                name_conflict = owned_documents.filter(title__iexact=title).first()
+                conflict = exact_duplicate or name_conflict
+                if conflict and conflict_strategy == "ask":
+                    raise ImportConflictError(
+                        {
+                            "code": (
+                                "exact_duplicate"
+                                if exact_duplicate
+                                else "name_conflict"
+                            ),
+                            "detail": "Choose skip, keep_both or replace.",
+                            "existing_document": {
+                                "id": str(conflict.id),
+                                "title": conflict.title,
+                                "file_type": conflict.file_type,
+                                "source_name": conflict.source_name,
+                                "updated_at": conflict.updated_at,
+                            },
+                        }
+                    )
+
+                if conflict and conflict_strategy in {"skip", "replace"}:
+                    serializer.import_conflict = conflict
+
+                if conflict and conflict_strategy == "keep_both":
+                    base_title = title
+                    suffix = 2
+                    while owned_documents.filter(title__iexact=title).exists():
+                        title = f"{base_title} ({suffix})"
+                        suffix += 1
+
+                if (
+                    file_type == choices.DocumentFileTypeChoices.MARKDOWN
+                    and file_content
+                ):
+                    serializer.validated_data["content"] = Converter().convert(
+                        file_content,
+                        content_type=mime_types.MARKDOWN,
+                        accept=mime_types.YJS,
+                    )
+
+                serializer.validated_data.update(
+                    {
+                        "title": title,
+                        "file_type": file_type,
+                        "source_name": uploaded_file.name,
+                        "source_mime_type": content_type,
+                        "source_size": len(file_content),
+                        "source_sha256": digest,
+                    }
                 )
-                serializer.validated_data["content"] = converted_content
-                serializer.validated_data["title"] = uploaded_file.name
+                serializer.source_file_data = {
+                    "content": file_content,
+                    "name": uploaded_file.name,
+                    "mime_type": content_type,
+                    "file_type": file_type,
+                    "conflict_strategy": conflict_strategy,
+                }
                 logger.info("conversion ended successfully")
 
                 posthog_capture(
                     PosthogEventName.DOC_IMPORTED,
                     self.request.user,
-                    {"content_type": uploaded_file.content_type},
+                    {"content_type": content_type},
                 )
             except ConversionError as err:
                 logger.error("could not convert file content with error: %s", err)
@@ -727,10 +893,70 @@ class DocumentViewSet(
                     {"file": ["Could not convert file content"]}
                 ) from err
 
+    def _finalize_import_source(self, serializer, document):
+        """Store the live same-format source after the model has an ID."""
+
+        source = getattr(serializer, "source_file_data", None)
+        if source:
+            document.save_source_file(
+                source["content"],
+                source["name"],
+                source["mime_type"],
+                source["file_type"],
+            )
+
+    def _replace_import_conflict(self, serializer, document):
+        """Replace an existing owned document while preserving its ID and shares."""
+
+        if not document.get_abilities(self.request.user).get("update"):
+            raise drf.exceptions.PermissionDenied(
+                "You cannot replace this existing document."
+            )
+        source = serializer.source_file_data
+        document.title = serializer.validated_data["title"]
+        if (
+            source["file_type"] == choices.DocumentFileTypeChoices.MARKDOWN
+            and "content" in serializer.validated_data
+        ):
+            document.content = serializer.validated_data["content"]
+        document.save()
+        self._finalize_import_source(serializer, document)
+        serializer.instance = document
+        return document
+
+    def create(self, request, *args, **kwargs):
+        """Create or explicitly resolve an import conflict."""
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self._apply_uploaded_file_conversion(serializer)
+        conflict = getattr(serializer, "import_conflict", None)
+        strategy = getattr(serializer, "source_file_data", {}) or {}
+        strategy = strategy.get("conflict_strategy")
+        if conflict and strategy == "skip":
+            serializer.instance = conflict
+            return drf.response.Response(
+                {**serializer.data, "import_status": "skipped"},
+                status=status.HTTP_200_OK,
+            )
+        if conflict and strategy == "replace":
+            self._replace_import_conflict(serializer, conflict)
+            return drf.response.Response(
+                {**serializer.data, "import_status": "replaced"},
+                status=status.HTTP_200_OK,
+            )
+
+        self.perform_create(serializer)
+        self._finalize_import_source(serializer, serializer.instance)
+        headers = self.get_success_headers(serializer.data)
+        return drf.response.Response(
+            {**serializer.data, "import_status": "created"},
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
     def perform_create(self, serializer):
         """Set the current user as creator and owner of the newly created object."""
-
-        self._apply_uploaded_file_conversion(serializer)
 
         obj = create_tree_node_with_retry(
             lambda: models.Document.add_root(
@@ -831,6 +1057,196 @@ class DocumentViewSet(
         )
 
         return drf.response.Response({"can_edit": can_edit})
+
+    @drf.decorators.action(detail=True, methods=["get"], url_path="download")
+    def download(self, request, *args, **kwargs):
+        """Download the latest saved content in the document's fixed format."""
+
+        document = self.get_object()
+        if document.file_type == choices.DocumentFileTypeChoices.MARKDOWN:
+            if document.content:
+                try:
+                    markdown = Converter().convert(
+                        document.content,
+                        content_type=mime_types.YJS,
+                        accept=mime_types.MARKDOWN,
+                    )
+                except ConversionError as err:
+                    raise drf.exceptions.APIException(
+                        "Could not serialize the latest Markdown version."
+                    ) from err
+                content = markdown.encode("utf-8")
+            else:
+                content = b""
+            filename = document.source_name or f"{document.title or 'document'}.md"
+            if not filename.lower().endswith(".md"):
+                filename = f"{Path(filename).stem}.md"
+            document.save_source_file(
+                content,
+                filename,
+                mime_types.MARKDOWN,
+                choices.DocumentFileTypeChoices.MARKDOWN,
+            )
+
+        try:
+            source = document.get_source_response()
+        except (ClientError, FileNotFoundError) as err:
+            raise Http404("The latest saved file is not available.") from err
+
+        filename = document.source_name or f"{document.title or 'document'}.{document.file_type}"
+        response = StreamingHttpResponse(
+            streaming_content=content_stream(source["Body"]),
+            content_type=document.source_mime_type or "application/octet-stream",
+            status=status.HTTP_200_OK,
+        )
+        response["Content-Length"] = source.get("ContentLength", document.source_size)
+        response["Content-Disposition"] = content_disposition_header(
+            as_attachment=True, filename=filename
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Document-Revision"] = str(document.source_revision)
+        return response
+
+    @drf.decorators.action(detail=True, methods=["get"], url_path="office-config")
+    def office_config(self, request, *args, **kwargs):
+        """Return a signed ONLYOFFICE editor configuration."""
+
+        if not settings.ONLYOFFICE_ENABLED:
+            raise Http404
+        document = self.get_object()
+        file_token = create_access_token(document.id, "file")
+        callback_token = create_access_token(document.id, "callback")
+        file_path = reverse("documents-office-file", kwargs={"pk": document.id})
+        callback_path = reverse(
+            "documents-office-callback", kwargs={"pk": document.id}
+        )
+        if settings.ONLYOFFICE_CALLBACK_BASE_URL:
+            base_url = settings.ONLYOFFICE_CALLBACK_BASE_URL.rstrip("/")
+            file_url = f"{base_url}{file_path}"
+            callback_url = f"{base_url}{callback_path}"
+        else:
+            file_url = request.build_absolute_uri(file_path)
+            callback_url = request.build_absolute_uri(callback_path)
+        user_name = request.user.full_name or request.user.email or str(request.user.id)
+        can_edit = document.get_abilities(request.user).get("update", False)
+        config = {
+            "document": {
+                "fileType": document.file_type,
+                "key": f"{document.id}-{document.source_revision}",
+                "title": document.source_name
+                or f"{document.title or 'document'}.{document.file_type}",
+                "url": f"{file_url}?token={file_token}",
+                "permissions": {
+                    "edit": can_edit,
+                    "download": True,
+                    "print": True,
+                    "review": can_edit,
+                },
+            },
+            "documentType": "word",
+            "editorConfig": {
+                "callbackUrl": f"{callback_url}?token={callback_token}",
+                "lang": request.user.language or settings.LANGUAGE_CODE,
+                "mode": "edit" if can_edit else "view",
+                "user": {
+                    "id": str(request.user.id),
+                    "name": user_name,
+                    "image": (
+                        request.build_absolute_uri(request.user.avatar.url)
+                        if request.user.avatar
+                        else None
+                    ),
+                },
+                "customization": {
+                    "autosave": True,
+                    "compactHeader": True,
+                    "forcesave": True,
+                    "assemblyFormatAsOrigin": True,
+                    "uiTheme": "theme-dark"
+                    if request.query_params.get("theme") == "dark"
+                    else "theme-light",
+                },
+            },
+            "type": "desktop",
+        }
+        config["token"] = sign_editor_config(config)
+        return drf.response.Response(config)
+
+    @drf.decorators.action(
+        detail=True,
+        methods=["get"],
+        url_path="office-file",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+    )
+    def office_file(self, request, *args, **kwargs):
+        """Serve an office source file to Document Server."""
+
+        try:
+            document = models.Document.objects.get(pk=kwargs["pk"])
+        except (models.Document.DoesNotExist, ValidationError) as err:
+            raise Http404 from err
+        try:
+            verify_access_token(request.query_params.get("token", ""), document.id, "file")
+            source = document.get_source_response()
+        except OnlyOfficeError as err:
+            raise drf.exceptions.AuthenticationFailed(str(err)) from err
+        except (ClientError, FileNotFoundError) as err:
+            raise Http404 from err
+        response = StreamingHttpResponse(
+            streaming_content=content_stream(source["Body"]),
+            content_type=document.source_mime_type or "application/octet-stream",
+        )
+        response["Content-Length"] = source.get("ContentLength", document.source_size)
+        response["Content-Disposition"] = content_disposition_header(
+            as_attachment=False,
+            filename=document.source_name
+            or f"{document.title or 'document'}.{document.file_type}",
+        )
+        return response
+
+    @drf.decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="office-callback",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+    )
+    def office_callback(self, request, *args, **kwargs):
+        """Persist the latest same-format file sent by Document Server."""
+
+        document = models.Document.objects.get(pk=kwargs["pk"])
+        try:
+            verify_access_token(
+                request.query_params.get("token", ""), document.id, "callback"
+            )
+        except OnlyOfficeError:
+            return drf.response.Response({"error": 1}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            callback_status = int(request.data.get("status"))
+        except (TypeError, ValueError):
+            return drf.response.Response({"error": 1}, status=status.HTTP_400_BAD_REQUEST)
+        if callback_status in {2, 6}:
+            try:
+                content = download_callback_file(request.data["url"])
+                document.save_source_file(
+                    content,
+                    document.source_name,
+                    document.source_mime_type,
+                    document.file_type,
+                )
+            except (KeyError, OnlyOfficeError):
+                logger.exception("ONLYOFFICE save callback failed for %s", document.id)
+                return drf.response.Response({"error": 1})
+        elif callback_status in {3, 7}:
+            logger.error(
+                "ONLYOFFICE reported save error for %s: status=%s",
+                document.id,
+                callback_status,
+            )
+            return drf.response.Response({"error": 1})
+        return drf.response.Response({"error": 0})
 
     @drf.decorators.action(
         detail=False,
@@ -1093,6 +1509,21 @@ class DocumentViewSet(
 
             self._apply_uploaded_file_conversion(serializer)
 
+            conflict = getattr(serializer, "import_conflict", None)
+            source = getattr(serializer, "source_file_data", {}) or {}
+            if conflict and source.get("conflict_strategy") == "skip":
+                serializer.instance = conflict
+                return drf.response.Response(
+                    {**serializer.data, "import_status": "skipped"},
+                    status=status.HTTP_200_OK,
+                )
+            if conflict and source.get("conflict_strategy") == "replace":
+                self._replace_import_conflict(serializer, conflict)
+                return drf.response.Response(
+                    {**serializer.data, "import_status": "replaced"},
+                    status=status.HTTP_200_OK,
+                )
+
             child_document = create_tree_node_with_retry(
                 lambda: document.add_child(
                     creator=request.user,
@@ -1102,6 +1533,7 @@ class DocumentViewSet(
 
             # Set the created instance to the serializer
             serializer.instance = child_document
+            self._finalize_import_source(serializer, child_document)
 
             posthog_capture(
                 PosthogEventName.DOC_CREATED,
@@ -2254,52 +2686,6 @@ class DocumentViewSet(
     @drf.decorators.action(
         detail=True,
         methods=["post"],
-        name="Proxy AI requests to the AI provider",
-        url_path="ai-proxy",
-        throttle_classes=[utils.AIDocumentRateThrottle, utils.AIUserRateThrottle],
-    )
-    def ai_proxy(self, request, *args, **kwargs):
-        """
-        POST /api/v1.0/documents/<resource_id>/ai-proxy
-        Proxy AI requests to the configured AI provider.
-        This endpoint forwards requests to the AI provider and returns the complete response.
-        """
-        # Check permissions first
-        document = self.get_object()
-
-        if not settings.AI_FEATURE_ENABLED or not settings.AI_FEATURE_BLOCKNOTE_ENABLED:
-            raise ValidationError("AI feature is not enabled.")
-
-        ai_service = AIService()
-
-        try:
-            stream = ai_service.stream(request)
-        except PydanticValidationError as err:
-            logger.info("pydantic validation error: %s", err)
-            return drf.response.Response(
-                {"detail": "Invalid submitted payload"},
-                status=drf.status.HTTP_400_BAD_REQUEST,
-            )
-
-        posthog_capture(
-            PosthogEventName.DOC_AI_ACTION,
-            request.user,
-            {"method": "ai_proxy"},
-            document=document,
-        )
-
-        return StreamingHttpResponse(
-            stream,
-            content_type="text/event-stream",
-            headers={
-                "x-vercel-ai-data-stream": "v1",  # This header is used for Vercel AI streaming,
-                "X-Accel-Buffering": "no",  # Prevent nginx buffering
-            },
-        )
-
-    @drf.decorators.action(
-        detail=True,
-        methods=["post"],
         name="Apply a transformation action on a piece of text with AI",
         url_path="ai-transform",
         throttle_classes=[utils.AIDocumentRateThrottle, utils.AIUserRateThrottle],
@@ -3076,7 +3462,6 @@ class ConfigView(drf.views.APIView):
         array_settings = [
             "AI_BOT",
             "AI_FEATURE_ENABLED",
-            "AI_FEATURE_BLOCKNOTE_ENABLED",
             "AI_FEATURE_LEGACY_ENABLED",
             "API_USERS_SEARCH_QUERY_MIN_LENGTH",
             "COLLABORATION_WS_URL",
@@ -3085,11 +3470,17 @@ class ConfigView(drf.views.APIView):
             "CONVERSION_FILE_EXTENSIONS_ALLOWED",
             "CONVERSION_FILE_MAX_SIZE",
             "CONVERSION_UPLOAD_ENABLED",
+            "COMMENTS_ENABLED",
             "ENVIRONMENT",
             "FRONTEND_CSS_URL",
             "FRONTEND_HOMEPAGE_FEATURE_ENABLED",
             "FRONTEND_JS_URL",
             "FRONTEND_SILENT_LOGIN_ENABLED",
+            "LOCAL_AUTH_ENABLED",
+            "LOCAL_AUTH_REGISTRATION_ENABLED",
+            "OIDC_ENABLED",
+            "ONLYOFFICE_ENABLED",
+            "ONLYOFFICE_DOCUMENT_SERVER_URL",
             "FRONTEND_THEME",
             "MEDIA_BASE_URL",
             "POSTHOG_KEY",

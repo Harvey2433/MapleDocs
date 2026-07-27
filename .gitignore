@@ -46,6 +46,7 @@ env.d/terraform
 # Docker
 compose.override.yml
 docker/auth/*.local
+deploy/production.env
 
 # npm
 node_modules

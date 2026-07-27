@@ -3,10 +3,12 @@
 
 import binascii
 import mimetypes
+import re
 from base64 import b64decode
 from os.path import splitext
 
 from django.conf import settings
+from django.contrib.auth import password_validation
 from django.db.models import Q
 from django.utils.functional import lazy
 from django.utils.text import slugify
@@ -30,8 +32,14 @@ from core.utils.treebeard import create_tree_node_with_retry
 class UserSerializer(serializers.ModelSerializer):
     """Serialize users."""
 
-    full_name = serializers.SerializerMethodField(read_only=True)
-    short_name = serializers.SerializerMethodField(read_only=True)
+    full_name = serializers.CharField(required=False, allow_blank=False, max_length=100)
+    short_name = serializers.CharField(required=False, allow_blank=False, max_length=100)
+    avatar = serializers.ImageField(required=False, write_only=True, allow_null=True)
+    background_image = serializers.ImageField(
+        required=False, write_only=True, allow_null=True
+    )
+    avatar_url = serializers.SerializerMethodField(read_only=True)
+    background_image_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = models.User
@@ -42,39 +50,145 @@ class UserSerializer(serializers.ModelSerializer):
             "short_name",
             "language",
             "is_first_connection",
+            "appearance",
+            "avatar",
+            "avatar_url",
+            "background_image",
+            "background_image_url",
         ]
         read_only_fields = [
             "id",
             "email",
-            "full_name",
-            "short_name",
             "is_first_connection",
         ]
 
-    def get_full_name(self, instance):
-        """Return the full name of the user."""
-        if not instance.full_name:
-            email = instance.email.split("@")[0]
-            return slugify(email)
+    def to_representation(self, instance):
+        """Return stable display names for legacy users without profile names."""
 
-        return instance.full_name
+        data = super().to_representation(instance)
+        fallback = slugify((instance.email or instance.admin_email or "user").split("@")[0])
+        data["full_name"] = instance.full_name or fallback
+        data["short_name"] = instance.short_name or data["full_name"]
+        return data
 
-    def get_short_name(self, instance):
-        """Return the short name of the user."""
-        if not instance.short_name:
-            email = instance.email.split("@")[0]
-            return slugify(email)
+    def get_avatar_url(self, instance):
+        """Return an absolute avatar URL when one is configured."""
 
-        return instance.short_name
+        if not instance.avatar:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(instance.avatar.url) if request else instance.avatar.url
+
+    def get_background_image_url(self, instance):
+        """Return an absolute background image URL when one is configured."""
+
+        if not instance.background_image:
+            return None
+        request = self.context.get("request")
+        url = instance.background_image.url
+        return request.build_absolute_uri(url) if request else url
+
+    def _validate_user_image(self, image):
+        if image is None:
+            return image
+        if image.size > settings.USER_IMAGE_MAX_SIZE:
+            raise serializers.ValidationError("Image exceeds the configured size limit.")
+        extension = splitext(image.name)[1].lower()
+        if extension not in {".jpg", ".jpeg", ".png", ".webp"}:
+            raise serializers.ValidationError("Only JPG, PNG and WebP images are allowed.")
+        return image
+
+    def validate_avatar(self, image):
+        return self._validate_user_image(image)
+
+    def validate_background_image(self, image):
+        return self._validate_user_image(image)
+
+    def validate_appearance(self, value):
+        """Validate the complete per-user appearance document."""
+
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Appearance must be an object.")
+        allowed = {
+            "theme_mode",
+            "accent",
+            "surface_opacity",
+            "material",
+            "material_strength",
+            "background_source",
+            "background_url",
+            "background_refresh_minutes",
+        }
+        unknown = set(value) - allowed
+        if unknown:
+            raise serializers.ValidationError(
+                f"Unsupported appearance settings: {', '.join(sorted(unknown))}."
+            )
+        if value.get("theme_mode", "system") not in {"system", "light", "dark"}:
+            raise serializers.ValidationError("Invalid theme mode.")
+        if value.get("material", "mica") not in {"mica", "gaussian", "acrylic"}:
+            raise serializers.ValidationError("Invalid material.")
+        accent = value.get("accent", "#1F5D45")
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", accent):
+            raise serializers.ValidationError("Accent must be a six-digit hex color.")
+        for field in ["surface_opacity", "material_strength"]:
+            number = value.get(field, 70)
+            if not isinstance(number, int) or not 0 <= number <= 100:
+                raise serializers.ValidationError(f"{field} must be between 0 and 100.")
+        refresh = value.get("background_refresh_minutes", 0)
+        if refresh not in {0, 15, 60, 360, 1440}:
+            raise serializers.ValidationError("Invalid background refresh interval.")
+        background_url = value.get("background_url", "")
+        if background_url and not re.match(
+            r"^https?://.+\.(?:jpe?g|png|webp)(?:[?#].*)?$", background_url, re.I
+        ):
+            raise serializers.ValidationError("Background URL must reference JPG, PNG or WebP.")
+        return value
+
+    def update(self, instance, validated_data):
+        """Replace profile media cleanly and update profile data."""
+
+        for field in ["avatar", "background_image"]:
+            if field in validated_data and getattr(instance, field):
+                getattr(instance, field).delete(save=False)
+        if "full_name" in validated_data and "short_name" not in validated_data:
+            validated_data["short_name"] = validated_data["full_name"]
+        return super().update(instance, validated_data)
 
 
-class UserLightSerializer(UserSerializer):
+class UserLightSerializer(serializers.ModelSerializer):
     """Serialize users with limited fields."""
 
     class Meta:
         model = models.User
         fields = ["full_name", "short_name"]
         read_only_fields = ["full_name", "short_name"]
+
+
+class LocalLoginSerializer(serializers.Serializer):
+    """Validate a local account login request."""
+
+    email = serializers.EmailField()
+    password = serializers.CharField(trim_whitespace=False, write_only=True)
+
+
+class LocalRegisterSerializer(serializers.Serializer):
+    """Validate local account registration."""
+
+    email = serializers.EmailField()
+    full_name = serializers.CharField(max_length=100)
+    password = serializers.CharField(trim_whitespace=False, write_only=True)
+
+    def validate_email(self, value):
+        if models.User.objects.filter(
+            Q(admin_email__iexact=value) | Q(email__iexact=value)
+        ).exists():
+            raise serializers.ValidationError("An account already uses this email.")
+        return value.lower()
+
+    def validate_password(self, value):
+        password_validation.validate_password(value)
+        return value
 
 
 class ListDocumentSerializer(serializers.ModelSerializer):
@@ -102,6 +216,7 @@ class ListDocumentSerializer(serializers.ModelSerializer):
             "depth",
             "excerpt",
             "is_favorite",
+            "file_type",
             "link_role",
             "link_reach",
             "nb_accesses_ancestors",
@@ -109,6 +224,11 @@ class ListDocumentSerializer(serializers.ModelSerializer):
             "numchild",
             "path",
             "title",
+            "source_name",
+            "source_mime_type",
+            "source_size",
+            "source_sha256",
+            "source_revision",
             "updated_at",
             "user_role",
         ]
@@ -125,12 +245,18 @@ class ListDocumentSerializer(serializers.ModelSerializer):
             "depth",
             "excerpt",
             "is_favorite",
+            "file_type",
             "link_role",
             "link_reach",
             "nb_accesses_ancestors",
             "nb_accesses_direct",
             "numchild",
             "path",
+            "source_name",
+            "source_mime_type",
+            "source_size",
+            "source_sha256",
+            "source_revision",
             "updated_at",
             "user_role",
         ]
@@ -184,6 +310,12 @@ class DocumentSerializer(ListDocumentSerializer):
     file = serializers.FileField(
         required=False, write_only=True, allow_null=True, max_length=255
     )
+    conflict_strategy = serializers.ChoiceField(
+        choices=["ask", "skip", "keep_both", "replace"],
+        default="ask",
+        required=False,
+        write_only=True,
+    )
 
     class Meta:
         model = models.Document
@@ -200,6 +332,13 @@ class DocumentSerializer(ListDocumentSerializer):
             "depth",
             "excerpt",
             "file",
+            "file_type",
+            "source_name",
+            "source_mime_type",
+            "source_size",
+            "source_sha256",
+            "source_revision",
+            "conflict_strategy",
             "is_favorite",
             "link_role",
             "link_reach",
@@ -223,6 +362,7 @@ class DocumentSerializer(ListDocumentSerializer):
             "creator",
             "deleted_at",
             "depth",
+            "file_type",
             "is_favorite",
             "link_role",
             "link_reach",
@@ -230,6 +370,11 @@ class DocumentSerializer(ListDocumentSerializer):
             "nb_accesses_direct",
             "numchild",
             "path",
+            "source_mime_type",
+            "source_name",
+            "source_revision",
+            "source_sha256",
+            "source_size",
             "updated_at",
             "user_role",
         ]
