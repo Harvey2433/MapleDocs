@@ -12,8 +12,6 @@ import { useLeftPanelStore } from '@/features/left-panel';
 import { useDate } from '@/hooks';
 import { useResponsiveStore } from '@/stores';
 
-import { useResponsiveDocGrid } from '../hooks/useResponsiveDocGrid';
-
 import { DocsGridActions } from './DocsGridActions';
 import { DocsGridItemSharedButton } from './DocsGridItemSharedButton';
 import { DocsGridTrashbinActions } from './DocsGridTrashbinActions';
@@ -31,8 +29,6 @@ export const DocsGridItem = ({ doc, dragMode = false }: DocsGridItemProps) => {
 
   const { t } = useTranslation();
   const { isDesktop, isLargeScreen } = useResponsiveStore();
-  const { flexLeft, flexRight } = useResponsiveDocGrid();
-  const { spacingsTokens } = useCunninghamTheme();
   const dateToDisplay = useDateToDisplay(doc, isInTrashbin);
   const { openPanel } = useLeftPanelStore();
 
@@ -53,86 +49,50 @@ export const DocsGridItem = ({ doc, dragMode = false }: DocsGridItemProps) => {
   };
 
   return (
-    <>
-      <Box
-        $direction="row"
-        $width="100%"
-        $align="center"
-        role="listitem"
-        $gap="20px"
-        $padding={{ vertical: '4xs', horizontal: isDesktop ? 'base' : 'xs' }}
-        $css={css`
-          cursor: pointer;
-          border-radius: 4px;
-          &:hover {
-            background-color: ${
-              dragMode
-                ? 'none'
-                : 'var(--c--contextuals--background--semantic--contextual--primary)'
-            };
-          }
-        `}
-        className="--docs--doc-grid-item"
-        aria-label={t('Open document: {{title}}', {
+    <Box
+      role="listitem"
+      className="--docs--doc-grid-item"
+      data-dragging={dragMode}
+      aria-label={t('Open document: {{title}}', {
+        title: doc.title || untitledDocument,
+      })}
+    >
+      <StyledLink
+        className="maple-doc-name"
+        href={`/docs/${doc.id}`}
+        onKeyDown={handleKeyDown}
+        onClick={handleClick}
+      >
+        <DocsGridItemTitle doc={doc} withTooltip={!dragMode} />
+      </StyledLink>
+      <div className="maple-doc-collaborators">
+        {isDesktop && (
+          <DocsGridItemSharedButton doc={doc} disabled={isInTrashbin} />
+        )}
+      </div>
+      <StyledLink
+        className="maple-doc-date"
+        href={`/docs/${doc.id}`}
+        tabIndex={-1}
+        aria-label={t('{{title}}, updated {{date}}', {
           title: doc.title || untitledDocument,
+          date: dateToDisplay,
         })}
       >
-        <Box
-          $flex={flexLeft}
-          $css={css`
-            align-items: center;
-            min-width: 0;
-          `}
-        >
-          <StyledLink
-            $css={css`
-              width: 100%;
-              align-items: center;
-              min-width: 0;
-            `}
-            href={`/docs/${doc.id}`}
-            onKeyDown={handleKeyDown}
-            onClick={handleClick}
-          >
-            <DocsGridItemTitle doc={doc} withTooltip={!dragMode} />
-          </StyledLink>
-        </Box>
-
-        <Box
-          $flex={flexRight}
-          $direction="row"
-          $align="center"
-          $justify={isDesktop ? 'space-between' : 'flex-end'}
-          $gap="32px"
-        >
-          <StyledLink
-            href={`/docs/${doc.id}`}
-            tabIndex={-1}
-            aria-label={t('{{title}}, updated {{date}}', {
-              title: doc.title || untitledDocument,
-              date: dateToDisplay,
-            })}
-          >
-            <DocsGridItemDate
-              doc={doc}
-              isDesktop={isDesktop}
-              isInTrashbin={isInTrashbin}
-            />
-          </StyledLink>
-
-          <Box $direction="row" $align="center" $gap={spacingsTokens.lg}>
-            {isDesktop && (
-              <DocsGridItemSharedButton doc={doc} disabled={isInTrashbin} />
-            )}
-            {isInTrashbin ? (
-              <DocsGridTrashbinActions doc={doc} />
-            ) : (
-              <DocsGridActions doc={doc} />
-            )}
-          </Box>
-        </Box>
-      </Box>
-    </>
+        <DocsGridItemDate
+          doc={doc}
+          isDesktop={isDesktop}
+          isInTrashbin={isInTrashbin}
+        />
+      </StyledLink>
+      <div className="maple-doc-actions">
+        {isInTrashbin ? (
+          <DocsGridTrashbinActions doc={doc} />
+        ) : (
+          <DocsGridActions doc={doc} />
+        )}
+      </div>
+    </Box>
   );
 };
 

@@ -16,6 +16,7 @@ export const useTrans = () => {
     [DocDefaultFilter.ALL_DOCS]: t('All docs'),
     [DocDefaultFilter.MY_DOCS]: t('My docs'),
     [DocDefaultFilter.SHARED_WITH_ME]: t('Shared with me'),
+    [DocDefaultFilter.FAVORITES]: t('Pinned documents'),
     [DocDefaultFilter.TRASHBIN]: t('Trashbin'),
   };
 

@@ -10,9 +10,9 @@ import { KEY_AUTH, setAuthUrl } from '@/features/auth';
 import { useRouteChangeCompleteFocus } from '@/hooks/useRouteChangeCompleteFocus';
 import { useResponsiveStore } from '@/stores/';
 
+import { AuthenticatedAppearance } from './AuthenticatedAppearance';
 import { ConfigProvider } from './config/';
 import { ThemeProvider } from './config/ThemeProvider';
-import { AuthenticatedAppearance } from './AuthenticatedAppearance';
 
 export const DEFAULT_QUERY_RETRY = 1;
 

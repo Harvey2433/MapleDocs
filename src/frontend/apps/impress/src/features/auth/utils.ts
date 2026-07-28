@@ -1,7 +1,6 @@
 import { safeLocalStorage, safeSessionStorage } from '@/utils/storages';
 
 import {
-  HOME_URL,
   LOGIN_URL,
   LOGOUT_URL,
   OIDC_LOGIN_URL,
@@ -21,15 +20,12 @@ export const getAuthUrl = () => {
 };
 
 /**
- * Store the current path in session storage (per-tab) if it's not the
- * homepage or root, so we can redirect the user to this path after login.
+ * Store the current path in session storage (per-tab) if it's not the root,
+ * so we can redirect the user to this path after login.
  * Using sessionStorage ensures each tab independently tracks its own URL.
  */
 export const setAuthUrl = () => {
-  if (
-    window.location.pathname !== '/' &&
-    window.location.pathname !== `${HOME_URL}/`
-  ) {
+  if (window.location.pathname !== '/') {
     safeSessionStorage.setItem(PATH_AUTH_SESSION_STORAGE, window.location.href);
   }
 };

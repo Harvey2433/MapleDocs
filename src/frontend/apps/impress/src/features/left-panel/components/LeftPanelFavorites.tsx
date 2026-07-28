@@ -1,130 +1,56 @@
-import { DateTime } from 'luxon';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { css } from 'styled-components';
 
-import {
-  Box,
-  HorizontalSeparator,
-  InfiniteScroll,
-  StyledLink,
-  Text,
-} from '@/components';
-import { useCunninghamTheme } from '@/cunningham';
-import {
-  Doc,
-  SimpleDocItem,
-  useInfiniteDocsFavorite,
-} from '@/docs/doc-management';
-import { DocsGridActions } from '@/features/docs/docs-grid';
-import { useResponsiveStore } from '@/stores/useResponsiveStore';
+import { Box, StyledLink } from '@/components';
+import { DocDefaultFilter, useDocs, useTrans } from '@/docs/doc-management';
+import { useDocsTrashbin } from '@/features/docs/docs-grid/api';
+import { useLeftPanelStore } from '@/features/left-panel';
+import { useResponsiveStore } from '@/stores';
 
 export const LeftPanelFavorites = () => {
   const { t } = useTranslation();
+  const { untitledDocument } = useTrans();
+  const { isMobile } = useResponsiveStore();
+  const { closePanel } = useLeftPanelStore();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { data } = useDocs({ page: 1, ordering: '-updated_at' });
+  const trash = useDocsTrashbin({ page: 1 });
+  const docs = data?.results.slice(0, 3) ?? [];
 
-  const { spacingsTokens } = useCunninghamTheme();
-
-  const docs = useInfiniteDocsFavorite({
-    page: 1,
-  });
-
-  const favoriteDocs = docs.data?.pages.flatMap((page) => page.results) || [];
-
-  if (favoriteDocs.length === 0) {
-    return null;
-  }
+  const trashParams = new URLSearchParams(searchParams);
+  trashParams.set('target', DocDefaultFilter.TRASHBIN);
 
   return (
-    <Box as="section" className="--docs--left-panel-favorites">
-      <HorizontalSeparator $margin="none" />
-      <Box
-        $justify="center"
-        $padding={{ horizontal: 'sm', top: 'sm' }}
-        $gap={spacingsTokens['2xs']}
-        $height="100%"
-        data-testid="left-panel-favorites"
-      >
-        <Text
-          as="h2"
-          $size="sm"
-          $padding={{ horizontal: '3xs' }}
-          $weight="700"
-          $margin="0"
+    <Box as="section" className="maple-sidebar-recent">
+      <p className="maple-sidebar-label">{t('Recent documents')}</p>
+      {docs.map((doc) => (
+        <StyledLink
+          key={doc.id}
+          href={`/docs/${doc.id}`}
+          className="maple-sidebar-item"
+          onClick={() => isMobile && closePanel()}
         >
-          {t('Pinned documents')}
-        </Text>
-        <Box>
-          <Box as="ul" $padding="none" $margin={{ top: '4xs' }}>
-            {favoriteDocs.map((doc) => (
-              <LeftPanelFavoriteItem key={doc.id} doc={doc} />
-            ))}
-          </Box>
-          {docs.hasNextPage && (
-            <InfiniteScroll
-              hasMore={docs.hasNextPage}
-              isLoading={docs.isFetchingNextPage}
-              next={() => void docs.fetchNextPage()}
-              $padding="none"
-            />
-          )}
-        </Box>
-      </Box>
-    </Box>
-  );
-};
-
-type LeftPanelFavoriteItemProps = {
-  doc: Doc;
-};
-
-export const LeftPanelFavoriteItem = ({ doc }: LeftPanelFavoriteItemProps) => {
-  const { colorsTokens, spacingsTokens } = useCunninghamTheme();
-  const { isLargeScreen } = useResponsiveStore();
-  const { t } = useTranslation();
-
-  return (
-    <Box
-      as="li"
-      $direction="row"
-      $align="center"
-      $justify="space-between"
-      $css={css`
-        padding: ${spacingsTokens['2xs']};
-        border-radius: 4px;
-        .pinned-actions {
-          opacity: ${isLargeScreen ? 0 : 1};
-        }
-        &:hover {
-          background-color: var(
-            --c--contextuals--background--semantic--contextual--primary
-          );
-          .pinned-actions {
-            opacity: 1;
-          }
-        }
-        &:focus-within {
-          cursor: pointer;
-          box-shadow: 0 0 0 2px ${colorsTokens['brand-400']} !important;
-          .pinned-actions {
-            opacity: 1;
-          }
-        }
-      `}
-      key={doc.id}
-      className="--docs--left-panel-favorite-item"
-    >
+          <span className="material-symbols-outlined" aria-hidden="true">
+            description
+          </span>
+          <span>{doc.title || untitledDocument}</span>
+        </StyledLink>
+      ))}
       <StyledLink
-        href={`/docs/${doc.id}`}
-        $css={css`
-          overflow: auto;
-          outline: none !important;
-        `}
-        aria-label={`${doc.title}, ${t('Updated')} ${DateTime.fromISO(doc.updated_at).toRelative()}`}
+        href={`${pathname}?${trashParams.toString()}`}
+        className="maple-sidebar-item maple-trash-link"
+        data-active={searchParams.get('target') === DocDefaultFilter.TRASHBIN}
+        onClick={() => isMobile && closePanel()}
       >
-        <SimpleDocItem showDate doc={doc} />
+        <span className="material-symbols-outlined" aria-hidden="true">
+          delete
+        </span>
+        <span>{t('Trashbin')}</span>
+        {typeof trash.data?.count === 'number' && (
+          <small>{trash.data.count}</small>
+        )}
       </StyledLink>
-      <Box className="pinned-actions" $align="center">
-        <DocsGridActions doc={doc} />
-      </Box>
     </Box>
   );
 };

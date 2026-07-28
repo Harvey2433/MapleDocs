@@ -1,11 +1,12 @@
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { css } from 'styled-components';
 
-import AllDocs from '@/assets/icons/doc-all.svg';
-import { Box, Icon, StyledLink, Text } from '@/components';
-import { useCunninghamTheme } from '@/cunningham';
-import { DocDefaultFilter } from '@/docs/doc-management';
+import { Box, StyledLink } from '@/components';
+import {
+  DocDefaultFilter,
+  useDocs,
+  useDocsFavorite,
+} from '@/docs/doc-management';
 import { useLeftPanelStore } from '@/features/left-panel';
 import { useResponsiveStore } from '@/stores/useResponsiveStore';
 
@@ -15,98 +16,67 @@ export const LeftPanelTargetFilters = () => {
   const searchParams = useSearchParams();
   const { isMobile } = useResponsiveStore();
   const { closePanel } = useLeftPanelStore();
-  const { colorsTokens, spacingsTokens } = useCunninghamTheme();
+  const all = useDocs({ page: 1 });
+  const mine = useDocs({ page: 1, is_creator_me: true });
+  const shared = useDocs({ page: 1, is_creator_me: false });
+  const favorites = useDocsFavorite({ page: 1 });
 
   const target =
     (searchParams.get('target') as DocDefaultFilter) ??
     DocDefaultFilter.ALL_DOCS;
-
-  const defaultQueries = [
+  const queries = [
     {
-      icon: <Icon icon={<AllDocs width={24} height={24} />} />,
+      icon: 'description',
       label: t('All docs'),
-      targetQuery: DocDefaultFilter.ALL_DOCS,
+      target: DocDefaultFilter.ALL_DOCS,
+      count: all.data?.count,
     },
     {
-      icon: <Icon iconName="lock" />,
+      icon: 'lock',
       label: t('My docs'),
-      targetQuery: DocDefaultFilter.MY_DOCS,
+      target: DocDefaultFilter.MY_DOCS,
+      count: mine.data?.count,
     },
     {
-      icon: <Icon iconName="group" />,
+      icon: 'group',
       label: t('Shared with me'),
-      targetQuery: DocDefaultFilter.SHARED_WITH_ME,
+      target: DocDefaultFilter.SHARED_WITH_ME,
+      count: shared.data?.count,
     },
     {
-      icon: <Icon iconName="delete" />,
-      label: t('Trashbin'),
-      targetQuery: DocDefaultFilter.TRASHBIN,
+      icon: 'keep',
+      label: t('Pinned documents'),
+      target: DocDefaultFilter.FAVORITES,
+      count: favorites.data?.count,
     },
   ];
 
-  const buildHref = (query: DocDefaultFilter) => {
+  const hrefFor = (nextTarget: DocDefaultFilter) => {
     const params = new URLSearchParams(searchParams);
-    params.set('target', query);
+    params.set('target', nextTarget);
     return `${pathname}?${params.toString()}`;
   };
-
-  const handleFilterClick = () => {
-    if (isMobile) {
-      closePanel();
-    }
-  };
+  const onNavigate = () => isMobile && closePanel();
 
   return (
-    <Box
-      $justify="center"
-      $padding={{ horizontal: 'sm' }}
-      $gap={spacingsTokens['2xs']}
-      className="--docs--left-panel-target-filters"
-    >
-      {defaultQueries.map((query) => {
-        const isActive = target === query.targetQuery;
-        const href = buildHref(query.targetQuery);
-
-        return (
-          <StyledLink
-            key={query.label}
-            href={href}
-            aria-label={query.label}
-            aria-current={isActive ? 'page' : undefined}
-            onClick={handleFilterClick}
-            $css={css`
-              display: flex;
-              align-items: center;
-              justify-content: flex-start;
-              gap: ${spacingsTokens['xs']};
-              padding: ${spacingsTokens['2xs']};
-              border-radius: ${spacingsTokens['3xs']};
-              background-color: ${
-                isActive
-                  ? 'var(--c--contextuals--background--semantic--contextual--primary)'
-                  : 'transparent'
-              };
-              font-weight: ${isActive ? 700 : 400};
-              color: inherit;
-              text-decoration: none;
-              cursor: pointer;
-              &:hover {
-                background-color: var(
-                  --c--contextuals--background--semantic--contextual--primary
-                );
-              }
-              &:focus-visible {
-                outline: none !important;
-                box-shadow: 0 0 0 2px ${colorsTokens['brand-400']} !important;
-                border-radius: var(--c--globals--spacings--st);
-              }
-            `}
-          >
+    <Box className="maple-sidebar-nav">
+      <p className="maple-sidebar-label">{t('Workspace')}</p>
+      {queries.map((query) => (
+        <StyledLink
+          key={query.target}
+          href={hrefFor(query.target)}
+          className="maple-sidebar-item"
+          data-active={target === query.target}
+          aria-current={target === query.target ? 'page' : undefined}
+          onClick={onNavigate}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">
             {query.icon}
-            <Text $size="sm">{query.label}</Text>
-          </StyledLink>
-        );
-      })}
+          </span>
+          <span>{query.label}</span>
+          {typeof query.count === 'number' && <small>{query.count}</small>}
+        </StyledLink>
+      ))}
     </Box>
   );
 };

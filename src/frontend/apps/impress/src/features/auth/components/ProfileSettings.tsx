@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 import { APIError, errorCauses, fetchAPI } from '@/api';
 import { Box, Text } from '@/components';
+import { gotoLogout } from '@/features/auth/utils';
 
 import { KEY_AUTH, User } from '../api';
 
@@ -92,13 +93,18 @@ export const ProfileSettings = ({
           <Text $size="s" $variation="secondary">
             {user.email}
           </Text>
-          <Box $direction="row" $justify="flex-end" $gap="sm">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              {t('Cancel')}
+          <Box $direction="row" $justify="space-between" $gap="sm">
+            <Button type="button" variant="tertiary" onClick={gotoLogout}>
+              {t('Log out')}
             </Button>
-            <Button type="submit" disabled={pending || !name.trim()}>
-              {pending ? t('Saving...') : t('Save')}
-            </Button>
+            <Box $direction="row" $gap="sm">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                {t('Cancel')}
+              </Button>
+              <Button type="submit" disabled={pending || !name.trim()}>
+                {pending ? t('Saving...') : t('Save')}
+              </Button>
+            </Box>
           </Box>
         </Box>
       </form>

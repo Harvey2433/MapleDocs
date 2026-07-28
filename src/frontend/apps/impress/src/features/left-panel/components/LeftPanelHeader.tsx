@@ -1,113 +1,49 @@
-import { Button } from '@gouvfr-lasuite/cunningham-react';
-import { useRouter } from 'next/router';
 import { useTranslation } from 'react-i18next';
-import { css } from 'styled-components';
 
-import {
-  Box,
-  ButtonCloseModal,
-  SeparatedSection,
-  StyledLink,
-} from '@/components';
-import { Title } from '@/components/Title';
+import { Box, StyledLink } from '@/components';
 import { NewDocButton } from '@/docs/doc-management/components/NewDocButton';
-import { DocSearchButtonModal } from '@/docs/doc-search/components/DocSearchButtonModal';
 import { useAuth } from '@/features/auth';
-import HomeSVG from '@/icons/house-rounded.svg';
 import { useResponsiveStore } from '@/stores';
 
 import { useLeftPanelStore } from '../stores';
 
 export const LeftPanelHeader = () => {
+  const { t } = useTranslation();
   const { isMobile } = useResponsiveStore();
-  const { closePanel } = useLeftPanelStore();
+  const { closePanel, togglePanel } = useLeftPanelStore();
 
   return (
     <Box $width="100%" className="--docs--left-panel-header">
-      <Box
-        $padding={{ horizontal: 'sm' }}
-        $direction="row"
-        $align="center"
-        $gap="2xs"
-        $minHeight="68px"
-      >
-        <StyledLink
-          href="/"
-          data-testid="header-logo-link"
-          $css={css`
-            outline: none;
-            &:focus-visible {
-              box-shadow: 0 0 0 2px var(--c--globals--colors--brand-400) !important;
-              border-radius: var(--c--globals--spacings--st);
-            }
-          `}
-        >
-          <Box
-            $align="center"
-            $gap="var(--c--globals--spacings--4xs)"
-            $direction="row"
-            $position="relative"
-            $height="fit-content"
-            $margin={{ top: 'auto' }}
-          >
-            <Title headingLevel="h1" $size="1.125rem" />
-          </Box>
+      <Box className="maple-sidebar-brand" $direction="row" $align="center">
+        <StyledLink href="/" data-testid="header-logo-link">
+          MapleDocs
         </StyledLink>
-        {isMobile && (
-          <Box $margin={{ left: 'auto' }}>
-            <ButtonCloseModal
-              onClick={closePanel}
-              aria-label="Close left panel"
-            />
-          </Box>
-        )}
+        <button
+          className="maple-icon-button"
+          type="button"
+          onClick={isMobile ? closePanel : togglePanel}
+          aria-label={t('Close left panel')}
+          title={t('Close left panel')}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">
+            dock_to_left
+          </span>
+        </button>
       </Box>
       <LeftPanelHeaderActions />
     </Box>
   );
 };
 export const LeftPanelHeaderActions = () => {
-  const router = useRouter();
   const { authenticated } = useAuth();
-  const { togglePanel, closePanel } = useLeftPanelStore();
-  const { t } = useTranslation();
+  const { closePanel } = useLeftPanelStore();
   const { isMobile } = useResponsiveStore();
 
-  const goToHome = () => {
-    void router.push('/');
-
-    if (isMobile) {
-      togglePanel();
-    }
-  };
-
   return (
-    <SeparatedSection>
-      <Box
-        $padding={{ horizontal: 'sm' }}
-        $width="100%"
-        $direction="row"
-        $justify="space-between"
-        $align="center"
-      >
-        {authenticated && (
-          <NewDocButton onClose={() => isMobile && closePanel()} />
-        )}
-        <Box $direction="row" $gap="2px" $margin={{ left: 'auto' }}>
-          {router.pathname !== '/' && (
-            <Button
-              data-testid="home-button"
-              onClick={goToHome}
-              aria-label={t('Back to homepage')}
-              size="medium"
-              color="brand"
-              variant="tertiary"
-              icon={<HomeSVG aria-hidden="true" width={24} height={24} />}
-            />
-          )}
-          <DocSearchButtonModal />
-        </Box>
-      </Box>
-    </SeparatedSection>
+    <Box className="maple-sidebar-actions" $width="100%">
+      {authenticated && (
+        <NewDocButton onClose={() => isMobile && closePanel()} />
+      )}
+    </Box>
   );
 };

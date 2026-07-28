@@ -4,7 +4,6 @@ import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { Loading } from '@/components';
 import { useConfig } from '@/core';
 
-import { HOME_URL } from '../conf';
 import { useAuth } from '../hooks';
 import {
   getAuthUrl,
@@ -77,29 +76,9 @@ export const Auth = ({ children }: PropsWithChildren) => {
       return;
     }
 
-    /**
-     * The homepage feature is enabled, redirect them to the homepage
-     */
-    if (config?.FRONTEND_HOMEPAGE_FEATURE_ENABLED) {
-      if (pathname !== HOME_URL) {
-        setIsRedirecting(true);
-        window.location.replace(HOME_URL);
-      }
-
-      return;
-    }
-
-    /**
-     * Redirect them to login page
-     */
     setIsRedirecting(true);
     gotoLogin();
-  }, [
-    config?.FRONTEND_HOMEPAGE_FEATURE_ENABLED,
-    pathname,
-    shouldTryLogin,
-    shouldTrySilentLogin,
-  ]);
+  }, [pathname, shouldTryLogin, shouldTrySilentLogin]);
 
   const shouldShowLoader =
     !hasInitiallyLoaded ||

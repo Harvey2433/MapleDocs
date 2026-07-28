@@ -12,7 +12,7 @@ import { LeftPanelHeader } from './LeftPanelHeader';
 
 export const LeftPanel = ({ isResizable }: { isResizable?: boolean }) => {
   const { t } = useTranslation();
-  const { isMobile, isTablet } = useResponsiveStore();
+  const { isMobile } = useResponsiveStore();
   const { isPanelOpen, closePanel } = useLeftPanelStore();
 
   return (
@@ -36,15 +36,15 @@ export const LeftPanel = ({ isResizable }: { isResizable?: boolean }) => {
         className="--docs--left-panel"
         data-testid="left-panel"
         aria-label={t('Left panel')}
-        $width={isResizable ? '100%' : '300px'}
+        $width={isResizable ? '100%' : '252px'}
         $css={css`
           height: 100dvh;
           overflow: hidden;
           background-color: var(--c--contextuals--background--surface--primary);
           box-shadow: 10px 0px 10px 0px rgba(0, 0, 0, 0.05);
           transition:
-            transform 0.2s ease-in-out,
-            width 0.2s ease-in-out;
+            transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+            width 280ms cubic-bezier(0.22, 1, 0.36, 1);
 
           ${
             !isResizable
@@ -56,13 +56,14 @@ export const LeftPanel = ({ isResizable }: { isResizable?: boolean }) => {
           }
 
           ${
-            isTablet && !isMobile
+            !isResizable && !isMobile
               ? css`
                   ${
                     !isPanelOpen
                       ? css`
-                          transform: translateX(${isPanelOpen ? '0' : '-100%'});
+                          transform: translateX(-100%);
                           width: 0;
+                          border-right: 0;
                         `
                       : ''
                   }

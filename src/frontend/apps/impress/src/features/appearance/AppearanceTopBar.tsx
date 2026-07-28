@@ -1,4 +1,5 @@
 import { Button } from '@gouvfr-lasuite/cunningham-react';
+import { useRouter } from 'next/router';
 import { useTranslation } from 'react-i18next';
 
 import PaletteSVG from '@/assets/icons/ui-kit/palette.svg';
@@ -6,8 +7,12 @@ import PaletteSVG from '@/assets/icons/ui-kit/palette.svg';
 import { useAppearance } from './AppearanceProvider';
 
 export const AppearanceTopBar = () => {
+  const { pathname } = useRouter();
   const { t } = useTranslation();
   const { effectiveTheme, toggleTheme, openSettings } = useAppearance();
+  if (pathname === '/') {
+    return null;
+  }
   return (
     <div className="maple-top-actions">
       <Button

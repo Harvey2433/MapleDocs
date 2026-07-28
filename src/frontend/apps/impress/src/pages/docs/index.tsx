@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DocDefaultFilter, useTrans } from '@/docs/doc-management';
 import { DocsGrid } from '@/docs/docs-grid';
-import { HeaderFloatingBar } from '@/features/header/components/HeaderFloatingBar';
+import { DocsTopBar } from '@/docs/docs-grid/components/DocsTopBar';
 import { MainLayout } from '@/layouts';
 import { NextPageWithLayout } from '@/types/next';
 
@@ -28,7 +28,7 @@ const Page: NextPageWithLayout = () => {
           key="title"
         />
       </Head>
-      <HeaderFloatingBar />
+      <DocsTopBar target={target} />
       <DocsGrid target={target} />
     </>
   );
