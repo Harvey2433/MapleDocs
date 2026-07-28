@@ -10,6 +10,7 @@ from os.path import splitext
 from django.conf import settings
 from django.contrib.auth import password_validation
 from django.db.models import Q
+from django.urls import reverse
 from django.utils.functional import lazy
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -72,21 +73,22 @@ class UserSerializer(serializers.ModelSerializer):
         return data
 
     def get_avatar_url(self, instance):
-        """Return an absolute avatar URL when one is configured."""
+        """Return an authenticated avatar endpoint when one is configured."""
 
         if not instance.avatar:
             return None
         request = self.context.get("request")
-        return request.build_absolute_uri(instance.avatar.url) if request else instance.avatar.url
+        path = reverse("users-avatar", kwargs={"pk": instance.pk})
+        return request.build_absolute_uri(path) if request else path
 
     def get_background_image_url(self, instance):
-        """Return an absolute background image URL when one is configured."""
+        """Return an authenticated background endpoint when configured."""
 
         if not instance.background_image:
             return None
         request = self.context.get("request")
-        url = instance.background_image.url
-        return request.build_absolute_uri(url) if request else url
+        path = reverse("users-background-image", kwargs={"pk": instance.pk})
+        return request.build_absolute_uri(path) if request else path
 
     def _validate_user_image(self, image):
         if image is None:
@@ -128,6 +130,13 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid theme mode.")
         if value.get("material", "mica") not in {"mica", "gaussian", "acrylic"}:
             raise serializers.ValidationError("Invalid material.")
+        if value.get("background_source", "none") not in {
+            "none",
+            "builtin",
+            "upload",
+            "url",
+        }:
+            raise serializers.ValidationError("Invalid background source.")
         accent = value.get("accent", "#1F5D45")
         if not re.fullmatch(r"#[0-9A-Fa-f]{6}", accent):
             raise serializers.ValidationError("Accent must be a six-digit hex color.")

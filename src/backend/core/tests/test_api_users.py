@@ -2,7 +2,10 @@
 Test users API endpoints in the impress core app.
 """
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage, storages
 from django.utils import timezone
+from django.utils.functional import empty
 
 import pytest
 from rest_framework.test import APIClient
@@ -11,6 +14,12 @@ from core import factories, models
 from core.api import serializers
 
 pytestmark = pytest.mark.django_db
+
+PIXEL = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00"
+    b"\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfe"
+    b"\xa7V\xbd\xfa\x00\x00\x00\x00IEND\xaeB`\x82"
+)
 
 
 def test_api_users_list_anonymous():
@@ -777,6 +786,48 @@ def test_api_users_patch_profile_and_appearance_persists():
     assert response.json()["appearance"] == appearance
 
 
+def test_api_users_private_profile_images(request, settings, tmp_path):
+    """Avatars are shared with members while wallpapers remain owner-only."""
+
+    def reset_storage_cache():
+        storages._storages.clear()  # pylint: disable=protected-access
+        default_storage._wrapped = empty  # pylint: disable=protected-access
+
+    request.addfinalizer(reset_storage_cache)
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": str(tmp_path)},
+        },
+    }
+    reset_storage_cache()
+
+    user = factories.UserFactory()
+    user.avatar.save("avatar.png", ContentFile(PIXEL), save=False)
+    user.background_image.save("background.png", ContentFile(PIXEL), save=True)
+
+    client = APIClient()
+    client.force_login(user)
+    profile = client.get(f"/api/v1.0/users/{user.id!s}/").json()
+    assert profile["avatar_url"].endswith(f"/api/v1.0/users/{user.id!s}/avatar/")
+    assert profile["background_image_url"].endswith(
+        f"/api/v1.0/users/{user.id!s}/background-image/"
+    )
+
+    for path in (profile["avatar_url"], profile["background_image_url"]):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "image/png"
+        assert b"".join(response.streaming_content) == PIXEL
+
+    client.force_login(factories.UserFactory())
+    assert client.get(profile["avatar_url"]).status_code == 200
+    assert client.get(profile["background_image_url"]).status_code == 403
+    client.logout()
+    assert client.get(profile["avatar_url"]).status_code == 401
+
+
 @pytest.mark.parametrize(
     "appearance",
     [
@@ -787,6 +838,7 @@ def test_api_users_patch_profile_and_appearance_persists():
         {"material_strength": -1},
         {"background_refresh_minutes": 10},
         {"background_url": "javascript:alert(1)"},
+        {"background_source": "unsupported"},
         {"unknown_setting": True},
     ],
 )

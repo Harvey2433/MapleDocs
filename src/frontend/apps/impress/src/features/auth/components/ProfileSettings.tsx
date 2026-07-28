@@ -1,19 +1,25 @@
 import {
-  Button,
-  Modal,
-  ModalSize,
   VariantType,
   useToastProvider,
 } from '@gouvfr-lasuite/cunningham-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { APIError, errorCauses, fetchAPI } from '@/api';
-import { Box, Text } from '@/components';
+import { MapleDialog } from '@/components';
 import { gotoLogout } from '@/features/auth/utils';
 
 import { KEY_AUTH, User } from '../api';
+
+const initials = (value: string) =>
+  value
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
 export const ProfileSettings = ({
   user,
@@ -27,7 +33,17 @@ export const ProfileSettings = ({
   const queryClient = useQueryClient();
   const [name, setName] = useState(user.full_name);
   const [avatar, setAvatar] = useState<File>();
+  const [preview, setPreview] = useState(user.avatar_url || '');
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!avatar) {
+      return;
+    }
+    const url = URL.createObjectURL(avatar);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatar]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -61,53 +77,73 @@ export const ProfileSettings = ({
   };
 
   return (
-    <Modal
-      isOpen
+    <MapleDialog
+      className="maple-profile-dialog"
       onClose={onClose}
-      size={ModalSize.MEDIUM}
-      title={t('Edit profile')}
+      title={t('Profile')}
     >
-      <form onSubmit={(event) => void submit(event)}>
-        <Box $gap="md">
-          <label>
-            <Text as="span" $size="s">
-              {t('Display name')}
-            </Text>
-            <input
-              required
-              maxLength={100}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <label>
-            <Text as="span" $size="s">
-              {t('Avatar')}
-            </Text>
+      <form
+        className="maple-profile-form"
+        onSubmit={(event) => void submit(event)}
+      >
+        <div className="maple-profile-preview">
+          <span className="maple-profile-avatar-large">
+            {preview ? (
+              <img src={preview} alt="" />
+            ) : (
+              initials(name || user.email)
+            )}
+          </span>
+          <label className="maple-secondary-button">
+            <span className="material-symbols-outlined" aria-hidden="true">
+              upload
+            </span>
+            {t('Change avatar')}
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
               onChange={(event) => setAvatar(event.target.files?.[0])}
             />
           </label>
-          <Text $size="s" $variation="secondary">
-            {user.email}
-          </Text>
-          <Box $direction="row" $justify="space-between" $gap="sm">
-            <Button type="button" variant="tertiary" onClick={gotoLogout}>
-              {t('Log out')}
-            </Button>
-            <Box $direction="row" $gap="sm">
-              <Button type="button" variant="secondary" onClick={onClose}>
-                {t('Cancel')}
-              </Button>
-              <Button type="submit" disabled={pending || !name.trim()}>
-                {pending ? t('Saving...') : t('Save')}
-              </Button>
-            </Box>
-          </Box>
-        </Box>
+        </div>
+        <label>
+          <span>{t('Display name')}</span>
+          <input
+            required
+            maxLength={100}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>{t('Account')}</span>
+          <input value={user.email} disabled />
+        </label>
+        <div className="maple-profile-actions">
+          <button
+            className="maple-text-button"
+            type="button"
+            onClick={gotoLogout}
+          >
+            {t('Log out')}
+          </button>
+          <span />
+          <button
+            className="maple-secondary-button"
+            type="button"
+            onClick={onClose}
+          >
+            {t('Cancel')}
+          </button>
+          <button
+            className="maple-primary-button"
+            type="submit"
+            disabled={pending || !name.trim()}
+          >
+            {pending ? t('Saving...') : t('Save profile')}
+          </button>
+        </div>
       </form>
-    </Modal>
+    </MapleDialog>
   );
 };

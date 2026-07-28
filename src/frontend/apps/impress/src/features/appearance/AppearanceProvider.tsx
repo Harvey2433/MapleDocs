@@ -12,6 +12,7 @@ import {
 
 import { APIError, errorCauses, fetchAPI } from '@/api';
 import { KEY_AUTH, User, UserAppearance, useAuth } from '@/features/auth';
+import DefaultWallpaper from '@/features/home/assets/banner.jpg';
 
 import { AppearanceSettings } from './AppearanceSettings';
 
@@ -158,6 +159,7 @@ export const AppearanceProvider = ({ children }: PropsWithChildren) => {
       form.append('background_image', file);
       const saved = await updateUser(user.id, form, true);
       queryClient.setQueryData([KEY_AUTH], saved);
+      setWallpaperRevision((value) => value + 1);
       setAppearance((current) => ({
         ...current,
         background_source: 'upload',
@@ -167,11 +169,13 @@ export const AppearanceProvider = ({ children }: PropsWithChildren) => {
   );
 
   const rawWallpaper =
-    appearance.background_source === 'url'
-      ? appearance.background_url
-      : appearance.background_source === 'upload'
-        ? user?.background_image_url || ''
-        : '';
+    appearance.background_source === 'builtin'
+      ? DefaultWallpaper.src
+      : appearance.background_source === 'url'
+        ? appearance.background_url
+        : appearance.background_source === 'upload'
+          ? user?.background_image_url || ''
+          : '';
   const wallpaper = useMemo(() => {
     if (!rawWallpaper || !wallpaperRevision) {
       return rawWallpaper;

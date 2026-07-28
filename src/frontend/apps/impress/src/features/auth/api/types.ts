@@ -24,7 +24,7 @@ export interface UserAppearance {
   surface_opacity: number;
   material: 'mica' | 'gaussian' | 'acrylic';
   material_strength: number;
-  background_source: 'none' | 'upload' | 'url';
+  background_source: 'none' | 'builtin' | 'upload' | 'url';
   background_url: string;
   background_refresh_minutes: 0 | 15 | 60 | 360 | 1440;
 }

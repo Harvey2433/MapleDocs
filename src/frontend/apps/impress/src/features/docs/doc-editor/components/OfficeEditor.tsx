@@ -6,6 +6,7 @@ import { APIError, errorCauses, fetchAPI } from '@/api';
 import { Box, Text } from '@/components';
 import { useConfig } from '@/core';
 import { Doc } from '@/docs/doc-management';
+import { useAppearance } from '@/features/appearance';
 
 type OfficeState = 'loading' | 'saved' | 'saving' | 'error';
 
@@ -51,6 +52,7 @@ const loadScript = (src: string) =>
   });
 
 export const OfficeEditor = ({ doc }: { doc: Doc }) => {
+  const { effectiveTheme } = useAppearance();
   const { t } = useTranslation();
   const { data: appConfig } = useConfig();
   const editorRef = useRef<OnlyOfficeEditor | undefined>(undefined);
@@ -70,10 +72,8 @@ export const OfficeEditor = ({ doc }: { doc: Doc }) => {
     const mountEditor = async () => {
       try {
         await loadScript(`${serverUrl}/web-apps/apps/api/documents/api.js`);
-        const theme =
-          document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
         const response = await fetchAPI(
-          `documents/${doc.id}/office-config/?theme=${theme}`,
+          `documents/${doc.id}/office-config/?theme=${effectiveTheme}`,
         );
         if (!response.ok) {
           throw new APIError(
@@ -112,7 +112,7 @@ export const OfficeEditor = ({ doc }: { doc: Doc }) => {
       editorRef.current?.destroyEditor();
       editorRef.current = undefined;
     };
-  }, [appConfig?.ONLYOFFICE_DOCUMENT_SERVER_URL, doc.id]);
+  }, [appConfig?.ONLYOFFICE_DOCUMENT_SERVER_URL, doc.id, effectiveTheme]);
 
   return (
     <Box $height="100%" $width="100%" $position="relative">

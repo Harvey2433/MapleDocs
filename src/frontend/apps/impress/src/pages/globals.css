@@ -1164,3 +1164,833 @@ nextjs-portal {
   white-space: nowrap !important;
   border: 0 !important;
 }
+
+/* MapleDocs workspace: the restored preview is the layout contract. */
+/* stylelint-disable no-duplicate-selectors */
+.maple-wallpaper {
+  z-index: 0;
+}
+
+/* stylelint-disable selector-id-pattern */
+#__next,
+#__next > .c__app,
+.--docs--main-layout,
+.--docs--page-layout {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+/* stylelint-enable selector-id-pattern */
+
+.c__app {
+  --c--contextuals--background--surface--primary: rgb(
+    var(--maple-surface-rgb),
+    var(--maple-surface-opacity)
+  );
+  --c--contextuals--background--surface--secondary: rgb(
+    var(--maple-surface-rgb),
+    0.56
+  );
+  --c--contextuals--background--surface--tertiary: rgb(
+    var(--maple-surface-rgb),
+    0.4
+  );
+  --c--contextuals--content--semantic--neutral--primary: var(--maple-text);
+  --c--contextuals--content--semantic--neutral--secondary: var(
+    --maple-text-muted
+  );
+  --c--contextuals--content--semantic--neutral--tertiary: var(
+    --maple-text-muted
+  );
+  --c--contextuals--border--surface--primary: var(--maple-line);
+}
+
+:root[data-theme='dark'] .c__app {
+  --c--contextuals--background--surface--primary: rgb(
+    var(--maple-surface-rgb),
+    var(--maple-surface-opacity)
+  );
+  --c--contextuals--background--surface--secondary: rgb(31 38 34 / 64%);
+  --c--contextuals--background--surface--tertiary: rgb(20 25 22 / 48%);
+  --c--contextuals--content--semantic--neutral--primary: #f2f6f4;
+  --c--contextuals--content--semantic--neutral--secondary: #bdc9c4;
+  --c--contextuals--content--semantic--neutral--tertiary: #aebbb5;
+  --c--contextuals--border--surface--primary: #46514b;
+}
+
+:root[data-theme='dark'] .maple-sidebar-item[data-active='true'] {
+  color: #a9d7c2 !important;
+  background: color-mix(in srgb, var(--maple-accent) 32%, transparent);
+}
+
+:root[data-theme='dark'] .maple-sidebar-item[data-active='true'] small,
+:root[data-theme='dark'] .maple-sidebar-item[data-active='true'] svg {
+  color: #a9d7c2 !important;
+}
+
+.--docs--main-layout {
+  background: rgb(
+    var(--maple-surface-rgb),
+    var(--maple-surface-opacity)
+  ) !important;
+  transition: background-color 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+main[role='main'],
+main.--docs--main-content,
+.--docs--editor-container,
+.--docs--doc-editor-header,
+.--docs--doc-grid > div {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+.--docs--left-panel {
+  z-index: 20;
+  width: var(--maple-sidebar-width) !important;
+  min-width: 0;
+  flex: 0 0 auto;
+  border-right: 1px solid var(--maple-line) !important;
+  background: rgb(
+    var(--maple-surface-rgb),
+    var(--maple-chrome-opacity)
+  ) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+}
+
+.--docs--left-panel[style*='width: 0'] {
+  width: 0 !important;
+}
+
+.maple-sidebar-tree-section {
+  margin-top: 18px;
+  padding: 0 10px 14px;
+  border-top: 1px solid var(--maple-line);
+}
+
+.maple-sidebar-tree-section .maple-sidebar-label {
+  margin: 14px 10px 7px;
+}
+
+.maple-sidebar-tree-section .--docs--left-panel-doc-content {
+  overflow: visible !important;
+}
+
+.maple-sidebar-tree-section [role='treeitem'] {
+  min-height: 34px;
+  color: var(--maple-text);
+}
+
+.maple-doc-topbar {
+  z-index: 12;
+  display: flex;
+  width: 100%;
+  min-height: var(--maple-topbar-height);
+  flex: 0 0 var(--maple-topbar-height);
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  color: var(--maple-text);
+  border-bottom: 1px solid var(--maple-line);
+  background: rgb(var(--maple-surface-rgb), var(--maple-chrome-opacity));
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+}
+
+.maple-doc-breadcrumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--maple-text-muted);
+  font-size: 13px;
+}
+
+.maple-doc-breadcrumb a {
+  overflow: hidden;
+  max-width: 180px;
+  padding: 3px 5px;
+  color: var(--maple-text-muted) !important;
+  border-radius: 5px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maple-doc-breadcrumb a:hover {
+  color: var(--maple-text) !important;
+  background: var(--maple-subtle);
+}
+
+.maple-doc-breadcrumb strong {
+  overflow: hidden;
+  max-width: 260px;
+  color: var(--maple-text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maple-doc-presence {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.maple-doc-presence .maple-mini-avatar {
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+}
+
+.maple-doc-presence img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.maple-presence-more {
+  margin-left: 5px;
+  color: var(--maple-text-muted);
+  font-size: 11px;
+}
+
+.maple-doc-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.maple-doc-top-actions .c__button {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 6px;
+}
+
+.maple-doc-top-actions .c__button:not([data-variant='primary']) {
+  color: var(--maple-text-muted);
+  border-color: transparent;
+  background: transparent;
+}
+
+.maple-doc-top-actions .c__button:hover {
+  color: var(--maple-text);
+  border-color: var(--maple-line);
+  background: var(--maple-subtle);
+}
+
+.--docs--doc-editor {
+  width: min(868px, 100%) !important;
+  max-width: 868px !important;
+  min-height: calc(100dvh - var(--maple-topbar-height));
+  margin: 0 auto !important;
+  padding: 0 54px 80px;
+  background: transparent !important;
+}
+
+.--docs--doc-editor-header {
+  min-height: 0;
+  padding: 42px 0 0 !important;
+  border: 0 !important;
+}
+
+.--docs--doc-header {
+  min-height: 0 !important;
+  background: transparent !important;
+}
+
+.--docs--doc-header > div:last-of-type {
+  gap: 8px;
+}
+
+.--docs--doc-header hr {
+  display: none;
+}
+
+.--docs--doc-title {
+  min-height: 42px !important;
+}
+
+.--docs--doc-title-input,
+.--docs--doc-title h2 {
+  color: var(--maple-text) !important;
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+}
+
+.--docs--doc-header-info,
+.--docs--doc-header-info * {
+  color: var(--maple-text-muted) !important;
+  font-size: 12px !important;
+}
+
+.--docs--doc-editor-content,
+.--docs--doc-editor-content > div,
+.--docs--editor-container,
+.--docs--main-editor,
+.bn-container,
+.bn-editor {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.--docs--editor-container {
+  padding: 0 0 100px !important;
+}
+
+.--docs--main-editor {
+  color: var(--maple-text) !important;
+}
+
+.--docs--main-editor .bn-editor {
+  min-height: 420px;
+  padding: 0 !important;
+  color: var(--maple-text) !important;
+  font-family: 'HarmonyOS Sans SC', sans-serif !important;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.--docs--main-editor .bn-block-content,
+.--docs--main-editor .bn-inline-content,
+.--docs--main-editor p,
+.--docs--main-editor h1,
+.--docs--main-editor h2,
+.--docs--main-editor h3 {
+  color: var(--maple-text) !important;
+}
+
+.maple-editor-toolbar {
+  position: sticky;
+  top: 12px;
+  z-index: 9;
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 2px;
+  margin: 8px auto 24px;
+  padding: 4px;
+  border: 1px solid var(--maple-line);
+  border-radius: 7px;
+  background: rgb(var(--maple-surface-rgb), 0.72);
+  box-shadow: 0 5px 14px rgb(35 45 39 / 8%);
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+}
+
+.maple-editor-toolbar button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: var(--maple-text-muted);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.maple-editor-toolbar button:hover {
+  color: var(--maple-text);
+  border-color: var(--maple-line);
+  background: var(--maple-subtle);
+}
+
+.maple-editor-toolbar .material-symbols-outlined {
+  font-size: 19px;
+}
+
+.maple-toolbar-separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 3px;
+  background: var(--maple-line);
+}
+
+.maple-toolbar-link {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  grid-template-columns: 210px 32px;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--maple-line);
+  border-radius: 7px;
+  background: rgb(var(--maple-surface-rgb), 0.94);
+  box-shadow: 0 8px 22px rgb(30 47 37 / 12%);
+  backdrop-filter: blur(var(--maple-material-strength));
+}
+
+.maple-toolbar-link input {
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  color: var(--maple-text);
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 5px;
+  background: rgb(var(--maple-surface-rgb), 0.72);
+  outline: none;
+}
+
+.maple-save-state {
+  position: absolute;
+  z-index: 4;
+  top: -27px;
+  right: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  color: var(--maple-text-muted);
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  font-size: 12px;
+}
+
+:root[data-theme='dark'] .mantine-Popover-dropdown,
+:root[data-theme='dark'] .bn-toolbar,
+:root[data-theme='dark'] .bn-suggestion-menu {
+  color: var(--maple-text);
+  border-color: var(--maple-line);
+  background: rgb(var(--maple-surface-rgb), 0.94);
+}
+
+.maple-dialog-backdrop {
+  position: fixed;
+  z-index: 10020;
+  display: grid;
+  inset: 0;
+  place-items: center;
+  padding: 16px;
+  background: rgb(20 28 23 / 36%);
+  animation: maple-backdrop-in 180ms ease-out;
+}
+
+.maple-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  color: var(--maple-text);
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 8px;
+  background: rgb(var(--maple-surface-rgb), 0.9);
+  box-shadow: 0 18px 60px rgb(24 36 29 / 20%);
+  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+  animation: maple-dialog-in 360ms cubic-bezier(0.34, 1.36, 0.64, 1);
+}
+
+.maple-appearance-dialog {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.maple-profile-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.maple-dialog-head {
+  display: flex;
+  align-items: center;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--maple-line);
+}
+
+.maple-dialog-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.maple-dialog-head .maple-icon-button {
+  margin-left: auto;
+}
+
+.maple-dialog-body {
+  max-height: calc(100dvh - 98px);
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.maple-settings-group {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--maple-line);
+}
+
+.maple-settings-group:first-child {
+  padding-top: 0;
+}
+
+.maple-settings-group:last-of-type {
+  border-bottom: 0;
+}
+
+.maple-settings-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--maple-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.maple-settings-group h3 .material-symbols-outlined {
+  color: var(--maple-text-muted);
+  font-size: 18px;
+}
+
+.maple-setting-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--maple-line);
+  border-radius: 7px;
+  background: var(--maple-subtle);
+}
+
+.maple-setting-options button,
+.maple-setting-options label {
+  display: flex;
+  min-width: 0;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 8px;
+  color: var(--maple-text-muted);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.maple-setting-options button[data-active='true'],
+.maple-setting-options label[data-active='true'] {
+  color: var(--maple-text);
+  border-color: var(--maple-line-strong);
+  background: rgb(var(--maple-surface-rgb));
+  box-shadow: 0 2px 7px rgb(28 39 32 / 7%);
+}
+
+.maple-setting-options .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.maple-wallpaper-options {
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.maple-wallpaper-options button,
+.maple-wallpaper-options label {
+  height: 76px;
+  flex-direction: column;
+  gap: 6px;
+  border-color: var(--maple-line-strong);
+  border-radius: 7px;
+  background: var(--maple-subtle);
+  font-size: 12px;
+}
+
+.maple-wallpaper-options button[data-active='true'],
+.maple-wallpaper-options label[data-active='true'] {
+  border-color: var(--maple-accent);
+  box-shadow: inset 0 0 0 1px var(--maple-accent);
+}
+
+.maple-wallpaper-options input[type='file'],
+.maple-profile-preview input[type='file'] {
+  display: none;
+}
+
+.maple-color-row {
+  display: grid;
+  grid-template-columns: auto 42px minmax(110px, 1fr) minmax(210px, 1.6fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.maple-swatches {
+  gap: 12px;
+}
+
+.maple-swatches button {
+  width: 30px;
+  height: 30px;
+  border: 2px solid rgb(var(--maple-surface-rgb));
+  box-shadow: 0 0 0 1px var(--maple-line-strong);
+}
+
+.maple-native-color {
+  width: 42px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.maple-hex-input,
+.maple-rgb-inputs label {
+  position: relative;
+}
+
+.maple-hex-input span,
+.maple-rgb-inputs span {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 9px;
+  color: var(--maple-text-muted);
+  font-size: 11px;
+}
+
+.maple-hex-input input,
+.maple-rgb-inputs input,
+.maple-url-row input,
+.maple-profile-form input,
+.maple-interval-row select {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  color: var(--maple-text);
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 6px;
+  background: rgb(var(--maple-surface-rgb), 0.48);
+  outline: none;
+}
+
+.maple-hex-input input {
+  padding-left: 38px;
+}
+
+.maple-rgb-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.maple-rgb-inputs input {
+  padding-left: 25px;
+}
+
+.maple-url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.maple-interval-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 200px);
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--maple-text-muted);
+  font-size: 12px;
+}
+
+.maple-range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 12px;
+}
+
+.maple-range-row input {
+  width: 100%;
+  accent-color: var(--maple-accent);
+}
+
+.maple-range-row output {
+  color: var(--maple-text-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.maple-setting-note,
+.maple-setting-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 12px 0 0;
+  color: var(--maple-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.maple-setting-error {
+  color: #a83b35;
+}
+
+.maple-primary-button,
+.maple-secondary-button,
+.maple-text-button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.maple-primary-button {
+  color: #fff;
+  border: 1px solid var(--maple-accent);
+  background: var(--maple-accent);
+}
+
+.maple-secondary-button {
+  color: var(--maple-text);
+  border: 1px solid var(--maple-line-strong);
+  background: rgb(var(--maple-surface-rgb), 0.48);
+}
+
+.maple-text-button {
+  color: #a83b35;
+  border: 0;
+  background: transparent;
+}
+
+.maple-profile-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.maple-profile-avatar-large {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  place-items: center;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--maple-accent) 74%, var(--maple-text));
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--maple-accent) 12%, transparent);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.maple-profile-avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.maple-profile-form > label {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  color: var(--maple-text-muted);
+  font-size: 12px;
+}
+
+.maple-profile-form input:disabled {
+  opacity: 0.68;
+}
+
+.maple-profile-actions {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.c__toast__container {
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  left: auto !important;
+  width: min(380px, calc(100vw - 36px)) !important;
+  pointer-events: none;
+}
+
+.c__toast__container .c__toast {
+  border: 1px solid color-mix(in srgb, var(--maple-accent) 32%, #fff);
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgb(30 47 37 / 12%);
+  pointer-events: auto;
+}
+
+@keyframes maple-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.975);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes maple-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (width <= 767px) {
+  .--docs--doc-editor {
+    width: 100% !important;
+    padding: 0 24px 64px;
+  }
+
+  .--docs--doc-editor-header {
+    padding-top: 30px !important;
+  }
+
+  .maple-doc-breadcrumb strong {
+    max-width: 150px;
+  }
+
+  .maple-doc-presence {
+    display: none;
+  }
+
+  .maple-color-row {
+    grid-template-columns: auto 42px;
+  }
+
+  .maple-hex-input,
+  .maple-rgb-inputs {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (width <= 520px) {
+  .maple-wallpaper-options,
+  .maple-setting-options {
+    grid-template-columns: 1fr;
+  }
+
+  .maple-profile-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .maple-profile-actions > span {
+    display: none;
+  }
+
+  .maple-profile-actions .maple-text-button {
+    grid-column: 1 / -1;
+  }
+}
+/* stylelint-enable no-duplicate-selectors */

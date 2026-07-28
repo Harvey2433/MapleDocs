@@ -16,7 +16,7 @@ export const LeftPanelContent = () => {
   const isHome = router.pathname === '/';
   const isDoc = router.pathname === '/docs/[id]';
 
-  if (isHome) {
+  if (isHome || isDoc) {
     return (
       <>
         <Box
@@ -36,13 +36,15 @@ export const LeftPanelContent = () => {
           $css="overflow-y: auto; overflow-x: hidden;"
         >
           <LeftPanelFavorites />
+          {isDoc && (
+            <Box className="maple-sidebar-tree-section">
+              <p className="maple-sidebar-label">文档结构</p>
+              <LeftPanelDocContent />
+            </Box>
+          )}
         </Box>
       </>
     );
-  }
-
-  if (isDoc) {
-    return <LeftPanelDocContent />;
   }
 
   return null;

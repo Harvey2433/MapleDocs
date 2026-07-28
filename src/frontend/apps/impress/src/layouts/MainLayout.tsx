@@ -4,12 +4,11 @@ import { css } from 'styled-components';
 
 import { Box, BoxType } from '@/components';
 import { AppearanceTopBar } from '@/features/appearance';
-import { LeftPanel, ResizableLeftPanel } from '@/features/left-panel';
+import { LeftPanel } from '@/features/left-panel';
 import { RightPanel } from '@/features/right-panel/components/RightPanel';
 import { DocEditorSkeleton, Skeleton } from '@/features/skeletons';
 
 import { MAIN_LAYOUT_ID } from './conf';
-import { usePanelCoordination } from './usePanelCoordination';
 
 type MainLayoutProps = {
   enableResizablePanel?: boolean;
@@ -68,17 +67,16 @@ const MainResizableLayout = ({
   children,
   ...props
 }: PropsWithChildren<BoxType>) => {
-  usePanelCoordination();
-
   return (
-    <ResizableLeftPanel>
+    <>
+      <LeftPanel />
       <Box $direction="row" $width="100%" $position="relative">
         <MainContent $flex="auto" $padding="0" {...props}>
           {children}
         </MainContent>
         <RightPanel />
       </Box>
-    </ResizableLeftPanel>
+    </>
   );
 };
 

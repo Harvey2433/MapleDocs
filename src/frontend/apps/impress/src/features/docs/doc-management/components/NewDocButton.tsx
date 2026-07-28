@@ -3,13 +3,10 @@ import { useRouter } from 'next/router';
 import { useTranslation } from 'react-i18next';
 
 import { Box, Text } from '@/components';
-import SubDocIcon from '@/icons/doc-new-subdoc.svg';
 import PlusIcon from '@/icons/doc-plus.svg';
 import UploadIcon from '@/icons/upload-arrow.svg';
 
-import { useCreateChildDoc } from '../api/useCreateChildDoc';
 import { useImport } from '../hooks/useImport';
-import { useDocStore } from '../stores/useDocStore';
 
 interface NewDocButtonProps {
   onClose?: () => void;
@@ -18,19 +15,11 @@ interface NewDocButtonProps {
 export const NewDocButton = ({ onClose }: NewDocButtonProps) => {
   const router = useRouter();
   const { t } = useTranslation();
-  const { currentDoc } = useDocStore();
   const { getInputProps, open, isPending, isEnabled, conflictModal } =
     useImport({
       onImportSuccess: (doc) => {
         onClose?.();
         void router.push(`/docs/${doc.id}/`);
-      },
-    });
-  const { mutate: createChildDoc, isPending: isChildPending } =
-    useCreateChildDoc({
-      onSuccess: (doc) => {
-        onClose?.();
-        void router.push(`/docs/${doc.id}`);
       },
     });
 
@@ -55,7 +44,7 @@ export const NewDocButton = ({ onClose }: NewDocButtonProps) => {
             {t('New')}
           </Text>
         </Button>
-        {!currentDoc && isEnabled && (
+        {isEnabled && (
           <Button
             data-testid="import-doc-button"
             color="brand"
@@ -75,24 +64,6 @@ export const NewDocButton = ({ onClose }: NewDocButtonProps) => {
               {t('Import')}
             </Text>
           </Button>
-        )}
-        {currentDoc && currentDoc.abilities.children_create && (
-          <Button
-            aria-label={t('New sub-doc')}
-            title={t('New sub-doc')}
-            color="neutral"
-            variant="tertiary"
-            size="small"
-            disabled={isChildPending}
-            onClick={() => createChildDoc({ parentId: currentDoc.id })}
-            icon={
-              isChildPending ? (
-                <Loader size="small" />
-              ) : (
-                <SubDocIcon aria-hidden="true" width={20} height={20} />
-              )
-            }
-          />
         )}
       </Box>
       <input {...getInputProps()} />

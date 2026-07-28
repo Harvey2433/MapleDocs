@@ -10,7 +10,7 @@ export const AppearanceTopBar = () => {
   const { pathname } = useRouter();
   const { t } = useTranslation();
   const { effectiveTheme, toggleTheme, openSettings } = useAppearance();
-  if (pathname === '/') {
+  if (pathname === '/' || pathname.startsWith('/docs/')) {
     return null;
   }
   return (

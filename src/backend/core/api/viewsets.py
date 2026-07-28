@@ -8,6 +8,7 @@ import hashlib
 import ipaddress
 import json
 import logging
+import mimetypes
 import socket
 import uuid
 from collections import defaultdict
@@ -28,7 +29,7 @@ from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db import models as db
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Greatest, Left, Length
-from django.http import Http404, StreamingHttpResponse
+from django.http import FileResponse, Http404, StreamingHttpResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -403,6 +404,40 @@ class UserViewSet(
         candidates.sort(key=_sort_key, reverse=True)
 
         return candidates[: settings.API_USERS_LIST_LIMIT]
+
+    def _profile_image_response(self, field_name):
+        """Stream a private profile image for the authenticated owner."""
+
+        user = self.get_object()
+        image = getattr(user, field_name)
+        if not image:
+            raise Http404
+        content_type = mimetypes.guess_type(image.name)[0] or "application/octet-stream"
+        response = FileResponse(image.open("rb"), content_type=content_type)
+        response["Cache-Control"] = "private, no-cache"
+        return response
+
+    @drf.decorators.action(
+        detail=True,
+        methods=["get"],
+        url_path="avatar",
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def avatar(self, request, *args, **kwargs):
+        """Return an avatar to an authenticated collaborator."""
+
+        return self._profile_image_response("avatar")
+
+    @drf.decorators.action(
+        detail=True,
+        methods=["get"],
+        url_path="background-image",
+        url_name="background-image",
+    )
+    def background_image(self, request, *args, **kwargs):
+        """Return the current user's workspace background."""
+
+        return self._profile_image_response("background_image")
 
     @drf.decorators.action(
         detail=False,

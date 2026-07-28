@@ -7,6 +7,7 @@ export * from './Emoji/EmojiPicker';
 export * from './ErrorPage';
 export * from './quick-search';
 export * from './Icon';
+export * from './MapleDialog';
 export * from './InfiniteScroll';
 export * from './Link';
 export * from './Loading';

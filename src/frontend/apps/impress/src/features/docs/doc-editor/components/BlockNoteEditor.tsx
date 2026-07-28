@@ -18,7 +18,14 @@ import {
   useCreateBlockNote,
 } from '@blocknote/react';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { useEffect, useMemo, useRef } from 'react';
+import {
+  FormEvent,
+  MouseEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Awareness } from 'y-protocols/awareness';
@@ -32,6 +39,7 @@ import {
   useComments,
 } from '@/docs/doc-comments';
 import { Doc } from '@/docs/doc-management';
+import { useAppearance } from '@/features/appearance';
 import { avatarUrlFromName, useAuth } from '@/features/auth';
 import { useRightPanelStore } from '@/features/right-panel/stores/useRightPanelStore';
 
@@ -76,7 +84,115 @@ interface BlockNoteEditorProps {
   provider: HocuspocusProvider;
 }
 
+const EditorQuickToolbar = ({ editor }: { editor: DocsBlockNoteEditor }) => {
+  const { t } = useTranslation();
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const keepEditorFocus = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  };
+  const currentBlock = () => editor.getTextCursorPosition().block;
+  const submitLink = (event: FormEvent) => {
+    event.preventDefault();
+    const url = linkUrl.trim();
+    if (url) {
+      editor.createLink(url);
+      setLinkUrl('');
+      setLinkOpen(false);
+    }
+  };
+
+  return (
+    <div className="maple-editor-toolbar" aria-label={t('Text formatting')}>
+      <button
+        type="button"
+        aria-label={t('Undo')}
+        title={t('Undo')}
+        onMouseDown={keepEditorFocus}
+        onClick={() => editor.undo()}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          undo
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-label={t('Redo')}
+        title={t('Redo')}
+        onMouseDown={keepEditorFocus}
+        onClick={() => editor.redo()}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          redo
+        </span>
+      </button>
+      <span className="maple-toolbar-separator" />
+      <button
+        type="button"
+        aria-label={t('Bold')}
+        title={t('Bold')}
+        onMouseDown={keepEditorFocus}
+        onClick={() => editor.toggleStyles({ bold: true })}
+      >
+        <strong>B</strong>
+      </button>
+      <button
+        type="button"
+        aria-label={t('Italic')}
+        title={t('Italic')}
+        onMouseDown={keepEditorFocus}
+        onClick={() => editor.toggleStyles({ italic: true })}
+      >
+        <em>I</em>
+      </button>
+      <span className="maple-toolbar-separator" />
+      <button
+        type="button"
+        aria-label={t('Bullet list')}
+        title={t('Bullet list')}
+        onMouseDown={keepEditorFocus}
+        onClick={() =>
+          editor.updateBlock(currentBlock(), { type: 'bulletListItem' })
+        }
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          format_list_bulleted
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-label={t('Insert link')}
+        title={t('Insert link')}
+        onMouseDown={keepEditorFocus}
+        onClick={() => setLinkOpen((value) => !value)}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          link
+        </span>
+      </button>
+      {linkOpen && (
+        <form className="maple-toolbar-link" onSubmit={submitLink}>
+          <input
+            autoFocus
+            type="url"
+            value={linkUrl}
+            aria-label={t('Link URL')}
+            placeholder="https://"
+            onChange={(event) => setLinkUrl(event.target.value)}
+          />
+          <button type="submit" aria-label={t('Insert link')}>
+            <span className="material-symbols-outlined" aria-hidden="true">
+              arrow_forward
+            </span>
+          </button>
+        </form>
+      )}
+    </div>
+  );
+};
+
 export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
+  const { effectiveTheme } = useAppearance();
   const { user } = useAuth();
   const { setEditor } = useEditorStore();
   const { themeTokens } = useCunninghamTheme();
@@ -248,12 +364,13 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
           />
         </Box>
       )}
+      <EditorQuickToolbar editor={editor} />
       <BlockNoteView
         className="--docs--main-editor"
         editor={editor}
         formattingToolbar={false}
         slashMenu={false}
-        theme="light"
+        theme={effectiveTheme}
         comments={false}
         aria-label={t('Document editor')}
         // To not clipped the floating part in the editor area
@@ -287,6 +404,7 @@ export const BlockNoteReader = ({
   initialContent,
   isMainEditor = true,
 }: BlockNoteReaderProps) => {
+  const { effectiveTheme } = useAppearance();
   const { user } = useAuth();
   const { setEditor } = useEditorStore();
   const { threadStore } = useComments(docId, false, user);
@@ -339,7 +457,7 @@ export const BlockNoteReader = ({
         className="--docs--main-editor"
         editor={editor}
         editable={false}
-        theme="light"
+        theme={effectiveTheme}
         formattingToolbar={false}
         slashMenu={false}
         comments={false}
