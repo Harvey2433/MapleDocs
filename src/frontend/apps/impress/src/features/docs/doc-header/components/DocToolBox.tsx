@@ -11,7 +11,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { baseApiUrl } from '@/api';
+import MoreSVG from '@/assets/icons/maple/ellipsis.svg';
 import AddLinkSVG from '@/assets/icons/ui-kit/add_link.svg';
+import TableContentIcon from '@/assets/icons/ui-kit/bulleted-list.svg';
 import ContentCopySVG from '@/assets/icons/ui-kit/content_copy.svg';
 import DeleteSVG from '@/assets/icons/ui-kit/delete.svg';
 import DownloadSVG from '@/assets/icons/ui-kit/download.svg';
@@ -21,7 +23,7 @@ import KeepSVG from '@/assets/icons/ui-kit/keep.svg';
 import KeepOffSVG from '@/assets/icons/ui-kit/keep_off.svg';
 import LeaveSVG from '@/assets/icons/ui-kit/leave.svg';
 import MarkdownCopySVG from '@/assets/icons/ui-kit/markdown_copy.svg';
-import MoreSVG from '@/assets/icons/ui-kit/more_horiz.svg';
+import { useHeadingStore } from '@/docs/doc-editor/stores/useHeadingStore';
 import {
   Doc,
   KEY_DOC,
@@ -35,6 +37,7 @@ import {
 } from '@/docs/doc-management';
 import { usePresenterStore } from '@/docs/doc-presenter/stores';
 import { useAuth } from '@/features/auth';
+import { useRightPanelStore } from '@/features/right-panel/stores/useRightPanelStore';
 import { useFocusStore, useResponsiveStore } from '@/stores';
 
 import { useCopyCurrentEditorToClipboard } from '../hooks/useCopyCurrentEditorToClipboard';
@@ -97,6 +100,8 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
   // Deep-link (#2397) and slide/URL sync live in PresenterRoot; here we only
   // trigger the manual "Present" action.
   const openPresenter = usePresenterStore((state) => state.open);
+  const headings = useHeadingStore((state) => state.headings);
+  const setActivePanel = useRightPanelStore((state) => state.setActivePanel);
   const { mutate: duplicateDoc } = useDuplicateDoc({
     onSuccess: (data) => {
       void router.push(`/docs/${data.id}`);
@@ -136,6 +141,12 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
       },
       isHidden: Boolean(doc.deleted_at) || isMobile,
       testId: `docs-actions-present-${doc.id}`,
+    },
+    {
+      label: t('Table of Contents'),
+      icon: <TableContentIcon width={24} height={24} aria-hidden="true" />,
+      callback: () => setActivePanel('tableContent'),
+      isHidden: headings.length === 0,
     },
     {
       label: t('Copy link'),
@@ -231,7 +242,7 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
         <Button
           aria-label={t('Open the document options')}
           size="small"
-          icon={<MoreSVG width={24} height={24} aria-hidden="true" />}
+          icon={<MoreSVG width={19} height={19} aria-hidden="true" />}
           color="neutral"
           variant="tertiary"
           onClick={(e) => {

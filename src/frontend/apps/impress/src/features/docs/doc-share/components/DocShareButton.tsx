@@ -3,13 +3,11 @@ import { useTreeContext } from '@gouvfr-lasuite/ui-kit';
 import dynamic from 'next/dynamic';
 import { useTranslation } from 'react-i18next';
 
-import SharedSVG from '@/assets/icons/ui-kit/shared.svg';
+import SharedSVG from '@/assets/icons/maple/share-2.svg';
 import { CardFloatingBar } from '@/components/FloatingBar';
 import { Doc } from '@/docs/doc-management/types';
 import { useAuth } from '@/features/auth';
 import { useFocusStore } from '@/stores/useFocusStore';
-
-import { KEY_LIST_DOC_ACCESSES, useDocAccesses } from '../api';
 
 const DocShareModal = dynamic(
   () =>
@@ -34,18 +32,7 @@ export const DocShareButton = ({
   const { addLastFocus, restoreFocus } = useFocusStore();
   const treeContext = useTreeContext<Doc>();
   const modalShare = useModal();
-  const { data: accesses } = useDocAccesses(
-    {
-      docId: doc.id,
-    },
-    {
-      enabled: doc.abilities.accesses_view,
-      queryKey: [KEY_LIST_DOC_ACCESSES, doc.id],
-    },
-  );
   const { authenticated } = useAuth();
-
-  const hasAccesses = !!accesses && accesses.length > 1; // more than the current user
 
   if (isHidden || !authenticated) {
     return null;
@@ -55,23 +42,19 @@ export const DocShareButton = ({
     <>
       <CardFloatingBar className="--docs--card--share">
         <Button
-          color={hasAccesses ? 'brand' : 'neutral'}
+          color="neutral"
           size="small"
-          variant={hasAccesses ? 'secondary' : 'tertiary'}
+          variant="secondary"
           onClick={(e) => {
             addLastFocus(e.currentTarget);
             modalShare.open();
           }}
           disabled={isDisabled}
-          icon={
-            hasAccesses ? (
-              <SharedSVG width={24} height={24} aria-hidden="true" />
-            ) : undefined
-          }
-          aria-label={hasAccesses ? t('Shared') : t('Share')}
+          icon={<SharedSVG width={17} height={17} aria-hidden="true" />}
+          aria-label={t('Share')}
           data-test="share-button"
         >
-          {hasAccesses ? t('Shared') : t('Share')}
+          {t('Share')}
         </Button>
       </CardFloatingBar>
       {modalShare.isOpen && (

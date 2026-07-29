@@ -2,20 +2,21 @@ import { Button } from '@gouvfr-lasuite/cunningham-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import PersonSVG from '@/assets/icons/ui-kit/person.svg';
-import PaletteSVG from '@/assets/icons/ui-kit/settings.svg';
+import PaletteSVG from '@/assets/icons/maple/settings.svg';
+import PersonSVG from '@/assets/icons/maple/user.svg';
 import { Box } from '@/components';
 import { useAppearance } from '@/features/appearance';
 import { ButtonLogin, ProfileSettings, useAuth } from '@/features/auth';
+import { gotoLogout } from '@/features/auth/utils';
 
-const initials = (name: string) =>
-  name
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+const initials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  const value =
+    parts.length === 1
+      ? Array.from(parts[0]).slice(0, 2).join('')
+      : parts.map((part) => part[0]).join('');
+  return value.slice(0, 2).toUpperCase();
+};
 
 export const LeftPanelFooter = () => {
   const { t } = useTranslation();
@@ -27,17 +28,26 @@ export const LeftPanelFooter = () => {
     <Box className="maple-sidebar-footer" $direction="row" $align="center">
       {user ? (
         <>
-          <span className="maple-sidebar-avatar" aria-hidden="true">
-            {user.avatar_url ? (
-              <img src={user.avatar_url} alt="" />
-            ) : (
-              initials(user.full_name)
-            )}
-          </span>
-          <span className="maple-sidebar-user">
-            <strong>{user.full_name}</strong>
-            <small>{user.email}</small>
-          </span>
+          <details className="maple-sidebar-account">
+            <summary title={t('Account')}>
+              <span className="maple-sidebar-avatar" aria-hidden="true">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="" />
+                ) : (
+                  initials(user.full_name)
+                )}
+              </span>
+              <span className="maple-sidebar-user">
+                <strong>{user.full_name}</strong>
+                <small>{user.email}</small>
+              </span>
+            </summary>
+            <div className="maple-account-menu">
+              <button type="button" onClick={gotoLogout}>
+                {t('Log out')}
+              </button>
+            </div>
+          </details>
           <Button
             aria-label={t('Edit profile')}
             title={t('Edit profile')}

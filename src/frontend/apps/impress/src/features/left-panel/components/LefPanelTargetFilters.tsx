@@ -1,6 +1,10 @@
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 
+import FilesIcon from '@/assets/icons/maple/files.svg';
+import LockIcon from '@/assets/icons/maple/lock-keyhole.svg';
+import PinIcon from '@/assets/icons/maple/pin.svg';
+import UsersIcon from '@/assets/icons/maple/users.svg';
 import { Box, StyledLink } from '@/components';
 import {
   DocDefaultFilter,
@@ -26,25 +30,25 @@ export const LeftPanelTargetFilters = () => {
     DocDefaultFilter.ALL_DOCS;
   const queries = [
     {
-      icon: 'description',
+      icon: <FilesIcon aria-hidden="true" width={20} height={20} />,
       label: t('All docs'),
       target: DocDefaultFilter.ALL_DOCS,
       count: all.data?.count,
     },
     {
-      icon: 'lock',
+      icon: <LockIcon aria-hidden="true" width={20} height={20} />,
       label: t('My docs'),
       target: DocDefaultFilter.MY_DOCS,
       count: mine.data?.count,
     },
     {
-      icon: 'group',
+      icon: <UsersIcon aria-hidden="true" width={20} height={20} />,
       label: t('Shared with me'),
       target: DocDefaultFilter.SHARED_WITH_ME,
       count: shared.data?.count,
     },
     {
-      icon: 'keep',
+      icon: <PinIcon aria-hidden="true" width={20} height={20} />,
       label: t('Pinned documents'),
       target: DocDefaultFilter.FAVORITES,
       count: favorites.data?.count,
@@ -70,9 +74,7 @@ export const LeftPanelTargetFilters = () => {
           aria-current={target === query.target ? 'page' : undefined}
           onClick={onNavigate}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            {query.icon}
-          </span>
+          {query.icon}
           <span>{query.label}</span>
           {typeof query.count === 'number' && <small>{query.count}</small>}
         </StyledLink>

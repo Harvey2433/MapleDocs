@@ -18,10 +18,10 @@ import { AppearanceSettings } from './AppearanceSettings';
 
 export const DEFAULT_APPEARANCE: UserAppearance = {
   theme_mode: 'system',
-  accent: '#1F6F54',
-  surface_opacity: 72,
+  accent: '#1F5D45',
+  surface_opacity: 70,
   material: 'mica',
-  material_strength: 64,
+  material_strength: 70,
   background_source: 'none',
   background_url: '',
   background_refresh_minutes: 0,
@@ -31,7 +31,11 @@ type AppearanceContextValue = {
   appearance: UserAppearance;
   effectiveTheme: 'light' | 'dark';
   setAppearance: (value: UserAppearance) => void;
-  toggleTheme: () => void;
+  transitionTheme: (
+    mode: UserAppearance['theme_mode'],
+    origin?: HTMLElement,
+  ) => void;
+  toggleTheme: (origin?: HTMLElement) => void;
   openSettings: () => void;
   uploadBackground: (file: File) => Promise<void>;
 };
@@ -121,6 +125,24 @@ export const AppearanceProvider = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     const root = document.documentElement;
+    const ratio = appearance.material_strength / 100;
+    const material = {
+      mica: {
+        blur: 10 + ratio * 20,
+        saturation: 1.08 + ratio * 0.2,
+        chromeOpacity: 0.08 + ratio * 0.08,
+      },
+      gaussian: {
+        blur: 2 + ratio * 34,
+        saturation: 1,
+        chromeOpacity: 0.04 + ratio * 0.05,
+      },
+      acrylic: {
+        blur: 14 + ratio * 28,
+        saturation: 1.2 + ratio * 0.35,
+        chromeOpacity: 0.12 + ratio * 0.1,
+      },
+    }[appearance.material];
     root.dataset.theme = effectiveTheme;
     root.dataset.material = appearance.material;
     root.style.setProperty('--maple-accent', appearance.accent);
@@ -130,25 +152,76 @@ export const AppearanceProvider = ({ children }: PropsWithChildren) => {
     );
     root.style.setProperty(
       '--maple-material-strength',
-      `${Math.round(appearance.material_strength * 0.28)}px`,
+      `${material.blur.toFixed(1)}px`,
+    );
+    root.style.setProperty(
+      '--maple-material-saturation',
+      material.saturation.toFixed(2),
+    );
+    root.style.setProperty(
+      '--maple-chrome-opacity',
+      material.chromeOpacity.toFixed(3),
     );
   }, [appearance, effectiveTheme]);
 
-  const toggleTheme = useCallback(() => {
-    const change = () =>
-      setAppearance((current) => ({
-        ...current,
-        theme_mode: effectiveTheme === 'dark' ? 'light' : 'dark',
-      }));
-    const documentWithTransition = document as Document & {
-      startViewTransition?: (callback: () => void) => void;
-    };
-    if (documentWithTransition.startViewTransition) {
-      documentWithTransition.startViewTransition(change);
-    } else {
-      change();
-    }
-  }, [effectiveTheme]);
+  const transitionTheme = useCallback(
+    (mode: UserAppearance['theme_mode'], origin?: HTMLElement) => {
+      const change = () =>
+        setAppearance((current) => ({
+          ...current,
+          theme_mode: mode,
+        }));
+      const reduceMotion = window.matchMedia(
+        '(prefers-reduced-motion: reduce)',
+      ).matches;
+      const documentWithTransition = document as Document & {
+        startViewTransition?: (callback: () => void) => {
+          ready: Promise<void>;
+          finished: Promise<void>;
+        };
+      };
+      if (!documentWithTransition.startViewTransition || reduceMotion) {
+        change();
+        return;
+      }
+
+      const rect = origin?.getBoundingClientRect();
+      const x = rect ? rect.left + rect.width / 2 : window.innerWidth - 28;
+      const y = rect ? rect.top + rect.height / 2 : 28;
+      const radius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y),
+      );
+      origin?.classList.add('is-changing');
+      const transition = documentWithTransition.startViewTransition(change);
+      void transition.ready.then(() => {
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${radius}px at ${x}px ${y}px)`,
+            ],
+          },
+          {
+            duration: 560,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            pseudoElement: '::view-transition-new(root)',
+          },
+        );
+      });
+      void transition.finished.finally(() =>
+        origin?.classList.remove('is-changing'),
+      );
+    },
+    [],
+  );
+
+  const toggleTheme = useCallback(
+    (origin?: HTMLElement) => {
+      transitionTheme(effectiveTheme === 'dark' ? 'light' : 'dark', origin);
+    },
+    [effectiveTheme, transitionTheme],
+  );
 
   const uploadBackground = useCallback(
     async (file: File) => {
@@ -190,6 +263,7 @@ export const AppearanceProvider = ({ children }: PropsWithChildren) => {
         appearance,
         effectiveTheme,
         setAppearance,
+        transitionTheme,
         toggleTheme,
         openSettings: () => setSettingsOpen(true),
         uploadBackground,

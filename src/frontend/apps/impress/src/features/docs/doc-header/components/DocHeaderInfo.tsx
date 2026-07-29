@@ -1,4 +1,5 @@
 import { t } from 'i18next';
+import { useEffect, useState } from 'react';
 
 import PublicSVG from '@/assets/icons/ui-kit/public.svg';
 import ProtedtedSVG from '@/assets/icons/ui-kit/vpn_lock.svg';
@@ -10,6 +11,7 @@ import {
   Role,
   getDocLinkReach,
   useIsCollaborativeEditable,
+  useProviderStore,
   useTrans,
 } from '@/docs/doc-management';
 import { useDate } from '@/hooks';
@@ -23,10 +25,29 @@ export const DocHeaderInfo = ({ doc }: DocHeaderInfoProps) => {
   const { isEditable } = useIsCollaborativeEditable(doc);
   const { relativeDate, calculateDaysLeft } = useDate();
   const { data: config } = useConfig();
+  const { provider } = useProviderStore();
+  const [onlineCount, setOnlineCount] = useState(1);
 
   const relativeOnly = relativeDate(doc.updated_at);
 
   const trashbinCutoff = config?.TRASHBIN_CUTOFF_DAYS;
+
+  useEffect(() => {
+    const awareness = provider?.awareness;
+    let updateTimer: ReturnType<typeof setTimeout> | undefined;
+    const updateOnlineCount = () => {
+      clearTimeout(updateTimer);
+      updateTimer = setTimeout(() => {
+        setOnlineCount(Math.max(awareness?.getStates().size || 1, 1));
+      }, 0);
+    };
+    updateOnlineCount();
+    awareness?.on('change', updateOnlineCount);
+    return () => {
+      clearTimeout(updateTimer);
+      awareness?.off('change', updateOnlineCount);
+    };
+  }, [provider]);
 
   let dateLabel: string;
   let dateValue: string;
@@ -38,6 +59,32 @@ export const DocHeaderInfo = ({ doc }: DocHeaderInfoProps) => {
   } else {
     dateLabel = t('Last update:');
     dateValue = relativeOnly;
+  }
+
+  if (!doc.deleted_at) {
+    return (
+      <Box
+        as="dl"
+        className="maple-doc-header-info"
+        $direction="row"
+        $align="center"
+        $gap="sm"
+        $margin="0"
+      >
+        <Text as="dt" className="sr-only">
+          {t('Collaborators')}
+        </Text>
+        <Text as="dd" $variation="tertiary" $size="s" $margin="0">
+          {t('{{count}} people online', { count: onlineCount })}
+        </Text>
+        <Text as="dt" className="sr-only">
+          {t('Updated at')}
+        </Text>
+        <Text as="dd" $variation="tertiary" $size="s" $margin="0">
+          {t('{{time}} updated', { time: relativeOnly })}
+        </Text>
+      </Box>
+    );
   }
 
   return (

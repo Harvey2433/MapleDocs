@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
+import FileTextIcon from '@/assets/icons/maple/file-text.svg';
 import ArrowSVG from '@/assets/icons/ui-kit/arrow-corner-down-right.svg';
 import { Box, Text } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
@@ -8,8 +9,6 @@ import { useDate } from '@/hooks/useDate';
 import { useResponsiveStore } from '@/stores';
 
 import ChildDocument from '../assets/child-document.svg';
-import PinnedDocumentIcon from '../assets/pinned-document.svg';
-import SimpleFileIcon from '../assets/simple-document.svg';
 import { useDocUtils, useTrans } from '../hooks';
 import { Doc } from '../types';
 
@@ -73,10 +72,10 @@ export const SimpleDocItem = ({
         aria-hidden="true"
       >
         {isPinned ? (
-          <PinnedDocumentIcon
+          <FileTextIcon
             aria-hidden="true"
             data-testid="doc-pinned-icon"
-            color="var(--c--contextuals--content--semantic--info--tertiary)"
+            color="currentColor"
           />
         ) : isChild ? (
           <ChildDocument
@@ -85,7 +84,7 @@ export const SimpleDocItem = ({
             color="var(--c--contextuals--content--semantic--info--tertiary)"
           />
         ) : (
-          <SimpleFileIcon
+          <FileTextIcon
             width="32px"
             height="32px"
             aria-hidden="true"

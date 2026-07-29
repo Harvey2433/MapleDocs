@@ -25,8 +25,14 @@ const getColorFromName = (name: string) => {
 };
 
 const getInitialFromName = (name: string) => {
-  const splitName = name?.split(' ');
-  return (splitName[0]?.charAt(0) || '?') + (splitName?.[1]?.charAt(0) || '');
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return Array.from(parts[0]).slice(0, 2).join('') || '?';
+  }
+  return parts
+    .map((part) => part.charAt(0))
+    .join('')
+    .slice(0, 2);
 };
 
 type UserAvatarProps = {

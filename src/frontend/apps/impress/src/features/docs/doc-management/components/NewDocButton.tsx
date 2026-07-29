@@ -2,9 +2,9 @@ import { Button, Loader } from '@gouvfr-lasuite/cunningham-react';
 import { useRouter } from 'next/router';
 import { useTranslation } from 'react-i18next';
 
+import UploadIcon from '@/assets/icons/maple/file-up.svg';
+import PlusIcon from '@/assets/icons/maple/plus.svg';
 import { Box, Text } from '@/components';
-import PlusIcon from '@/icons/doc-plus.svg';
-import UploadIcon from '@/icons/upload-arrow.svg';
 
 import { useImport } from '../hooks/useImport';
 

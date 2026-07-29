@@ -7,19 +7,19 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { APIError, errorCauses, fetchAPI } from '@/api';
+import UploadSVG from '@/assets/icons/maple/upload.svg';
 import { MapleDialog } from '@/components';
-import { gotoLogout } from '@/features/auth/utils';
 
 import { KEY_AUTH, User } from '../api';
 
-const initials = (value: string) =>
-  value
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+const initials = (value: string) => {
+  const parts = value.trim().split(/\s+/);
+  const result =
+    parts.length === 1
+      ? Array.from(parts[0]).slice(0, 2).join('')
+      : parts.map((part) => part[0]).join('');
+  return result.slice(0, 2).toUpperCase();
+};
 
 export const ProfileSettings = ({
   user,
@@ -95,9 +95,7 @@ export const ProfileSettings = ({
             )}
           </span>
           <label className="maple-secondary-button">
-            <span className="material-symbols-outlined" aria-hidden="true">
-              upload
-            </span>
+            <UploadSVG width={18} height={18} aria-hidden="true" />
             {t('Change avatar')}
             <input
               type="file"
@@ -120,14 +118,6 @@ export const ProfileSettings = ({
           <input value={user.email} disabled />
         </label>
         <div className="maple-profile-actions">
-          <button
-            className="maple-text-button"
-            type="button"
-            onClick={gotoLogout}
-          >
-            {t('Log out')}
-          </button>
-          <span />
           <button
             className="maple-secondary-button"
             type="button"

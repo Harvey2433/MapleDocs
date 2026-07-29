@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Box, HorizontalSeparator } from '@/components';
+import { Box } from '@/components';
 import { Doc, useIsCollaborativeEditable } from '@/docs/doc-management';
 
 import { AlertNetwork } from './AlertNetwork';
@@ -38,7 +38,6 @@ export const DocHeader = ({ doc }: DocHeaderProps) => {
           <DocTitle doc={doc} />
           <DocHeaderInfo doc={doc} />
         </Box>
-        <HorizontalSeparator $margin={{ top: '24px' }} />
       </Box>
     </>
   );

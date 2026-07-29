@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
+import SimpleFileIcon from '@/assets/icons/maple/file-text.svg';
 import { Box, Text } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
 import {
@@ -14,7 +15,6 @@ import {
   useIsCollaborativeEditable,
   useTrans,
 } from '@/docs/doc-management';
-import SimpleFileIcon from '@/features/docs/doc-management/assets/simple-document.svg';
 import { useResponsiveStore } from '@/stores';
 
 export const CLASS_DOC_TITLE = '--docs--doc-title';

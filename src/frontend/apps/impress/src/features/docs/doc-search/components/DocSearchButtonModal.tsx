@@ -3,7 +3,7 @@ import { t } from 'i18next';
 import dynamic from 'next/dynamic';
 import { useCallback, useState } from 'react';
 
-import SearchSVG from '@/assets/icons/ui-kit/zoom-rounded.svg';
+import SearchSVG from '@/assets/icons/maple/search.svg';
 import { useDocStore } from '@/docs/doc-management';
 import { useAuth } from '@/features/auth';
 import { useCmdK } from '@/hooks/useCmdK';
@@ -51,7 +51,7 @@ export const DocSearchButtonModal = ({ ...props }: ButtonProps) => {
         color="brand"
         variant="tertiary"
         aria-label={t('Search docs')}
-        icon={<SearchSVG aria-hidden="true" width={24} height={24} />}
+        icon={<SearchSVG aria-hidden="true" width={17} height={17} />}
         {...props}
       />
       {isSearchModalOpen && (

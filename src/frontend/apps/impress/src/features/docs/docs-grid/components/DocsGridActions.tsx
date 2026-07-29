@@ -1,30 +1,19 @@
 import { Button } from '@gouvfr-lasuite/cunningham-react';
 import { DropdownMenu, DropdownMenuItem } from '@gouvfr-lasuite/ui-kit';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import ContentCopySVG from '@/assets/icons/ui-kit/content_copy.svg';
-import DeleteSVG from '@/assets/icons/ui-kit/delete.svg';
-import DocMoveInSVG from '@/assets/icons/ui-kit/doc-move-in.svg';
-import GroupSVG from '@/assets/icons/ui-kit/group.svg';
-import KeepSVG from '@/assets/icons/ui-kit/keep.svg';
-import KeepOffSVG from '@/assets/icons/ui-kit/keep_off.svg';
-import LeaveSVG from '@/assets/icons/ui-kit/leave.svg';
-import MoreSVG from '@/assets/icons/ui-kit/more_horiz.svg';
+import { baseApiUrl } from '@/api';
+import MoreSVG from '@/assets/icons/maple/ellipsis.svg';
+import { MapleDialog } from '@/components';
 import {
   Doc,
   KEY_LIST_DOC,
-  KEY_LIST_FAVORITE_DOC,
-  useCreateFavoriteDoc,
-  useDeleteFavoriteDoc,
-  useDuplicateDoc,
   useTrans,
+  useUpdateDoc,
 } from '@/docs/doc-management';
-import { focusMainContentStart } from '@/layouts/utils';
 import { useFocusStore } from '@/stores';
-
-import { DocMoveModal } from './DocMoveModal';
 
 const DocShareModal = dynamic(
   () =>
@@ -42,16 +31,6 @@ const ModalRemoveDoc = dynamic(
   { ssr: false },
 );
 
-const ConfirmationLeaveModal = dynamic(
-  () =>
-    import('@/docs/doc-share/components/ConfirmationLeaveModal').then(
-      (mod) => ({
-        default: mod.ConfirmationLeaveModal,
-      }),
-    ),
-  { ssr: false },
-);
-
 interface DocsGridActionsProps {
   doc: Doc;
 }
@@ -61,85 +40,59 @@ export const DocsGridActions = ({ doc }: DocsGridActionsProps) => {
   const { restoreFocus, addLastFocus } = useFocusStore();
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isModalRemoveOpen, setIsModalRemoveOpen] = useState(false);
-  const [isModalLeaveOpen, setIsModalLeaveOpen] = useState(false);
   const [isModalShareOpen, setIsModalShareOpen] = useState(false);
-  const [isModalMoveOpen, setIsModalMoveOpen] = useState(false);
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(doc.title || '');
   const { untitledDocument } = useTrans();
-
-  const { mutate: duplicateDoc } = useDuplicateDoc({
-    onSuccess: () => {
-      requestAnimationFrame(() => {
-        focusMainContentStart({ preventScroll: true });
-      });
-    },
+  const { mutate: updateDoc, isPending: isRenamePending } = useUpdateDoc({
+    listInvalidQueries: [KEY_LIST_DOC],
+    onSuccess: () => setIsRenameOpen(false),
   });
-
-  const removeFavoriteDoc = useDeleteFavoriteDoc({
-    listInvalidQueries: [KEY_LIST_DOC, KEY_LIST_FAVORITE_DOC],
-  });
-  const makeFavoriteDoc = useCreateFavoriteDoc({
-    listInvalidQueries: [KEY_LIST_DOC, KEY_LIST_FAVORITE_DOC],
-  });
+  const downloadSource = () => {
+    const anchor = document.createElement('a');
+    anchor.href = `${baseApiUrl()}documents/${doc.id}/download/`;
+    anchor.download =
+      doc.source_name ||
+      `${doc.title || 'document'}.${doc.file_type === 'markdown' ? 'md' : doc.file_type}`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  };
+  const submitRename = (event: FormEvent) => {
+    event.preventDefault();
+    const title = renameValue.trim().replace(/(\r\n|\n|\r)/gm, '');
+    if (title !== (doc.title || '')) {
+      updateDoc({ id: doc.id, title });
+    } else {
+      setIsRenameOpen(false);
+    }
+  };
 
   const options: DropdownMenuItem[] = [
     {
-      label: doc.is_favorite ? t('Unpin') : t('Pin'),
-      icon: doc.is_favorite ? (
-        <KeepOffSVG width={24} height={24} aria-hidden="true" />
-      ) : (
-        <KeepSVG width={24} height={24} aria-hidden="true" />
-      ),
+      label: t('Rename'),
       callback: () => {
-        if (doc.is_favorite) {
-          removeFavoriteDoc.mutate({ id: doc.id });
-        } else {
-          makeFavoriteDoc.mutate({ id: doc.id });
-        }
+        setRenameValue(doc.title || '');
+        setIsRenameOpen(true);
       },
-      testId: `docs-grid-actions-${doc.is_favorite ? 'unpin' : 'pin'}-${doc.id}`,
-      showSeparator: true,
+      isHidden: !doc.abilities.partial_update,
+      testId: `docs-grid-actions-rename-${doc.id}`,
     },
     {
       label: t('Share'),
-      icon: <GroupSVG width={24} height={24} aria-hidden="true" />,
       callback: () => {
         setIsModalShareOpen(true);
       },
-
       testId: `docs-grid-actions-share-${doc.id}`,
     },
     {
-      label: t('Move into a doc'),
-      icon: <DocMoveInSVG width={24} height={24} aria-hidden="true" />,
-      callback: () => {
-        setIsModalMoveOpen(true);
-      },
-      testId: `docs-grid-actions-move-${doc.id}`,
-      isHidden: !doc.abilities.move,
+      label: t('Download source file'),
+      callback: downloadSource,
+      isHidden: !doc.abilities.download,
+      testId: `docs-grid-actions-download-${doc.id}`,
     },
     {
-      label: t('Duplicate'),
-      icon: <ContentCopySVG width={24} height={24} aria-hidden="true" />,
-      isDisabled: !doc.abilities.duplicate,
-      callback: () => {
-        duplicateDoc({
-          docId: doc.id,
-          with_accesses: false,
-          canSave: false,
-        });
-      },
-      showSeparator: true,
-    },
-    {
-      label: t('Leave'),
-      icon: <LeaveSVG width={24} height={24} aria-hidden="true" />,
-      callback: () => {
-        setIsModalLeaveOpen(true);
-      },
-    },
-    {
-      label: t('Delete'),
-      icon: <DeleteSVG width={24} height={24} aria-hidden="true" />,
+      label: t('Move to trash'),
       callback: () => {
         setIsModalRemoveOpen(true);
       },
@@ -165,7 +118,7 @@ export const DocsGridActions = ({ doc }: DocsGridActionsProps) => {
             },
           )}
           size="small"
-          icon={<MoreSVG width={16} height={16} aria-hidden="true" />}
+          icon={<MoreSVG width={19} height={19} aria-hidden="true" />}
           color="neutral"
           variant="tertiary"
           onClick={(e) => {
@@ -195,24 +148,34 @@ export const DocsGridActions = ({ doc }: DocsGridActionsProps) => {
           }}
         />
       )}
-      {isModalLeaveOpen && (
-        <ConfirmationLeaveModal
+      {isRenameOpen && (
+        <MapleDialog
+          className="maple-rename-dialog"
+          title={t('Rename')}
           onClose={() => {
-            setIsModalLeaveOpen(false);
+            setIsRenameOpen(false);
             restoreFocus();
           }}
-          doc={doc}
-        />
-      )}
-      {isModalMoveOpen && (
-        <DocMoveModal
-          doc={doc}
-          onClose={() => {
-            setIsModalMoveOpen(false);
-            restoreFocus();
-          }}
-          isOpen={isModalMoveOpen}
-        />
+        >
+          <form className="maple-rename-form" onSubmit={submitRename}>
+            <label>
+              <span>{t('Name')}</span>
+              <input
+                autoFocus
+                value={renameValue}
+                onChange={(event) => setRenameValue(event.target.value)}
+              />
+            </label>
+            <div>
+              <button type="button" onClick={() => setIsRenameOpen(false)}>
+                {t('Cancel')}
+              </button>
+              <button type="submit" disabled={isRenamePending}>
+                {t('Rename')}
+              </button>
+            </div>
+          </form>
+        </MapleDialog>
       )}
     </>
   );

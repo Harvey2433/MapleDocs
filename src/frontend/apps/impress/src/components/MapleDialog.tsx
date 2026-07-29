@@ -2,6 +2,8 @@ import { PropsWithChildren, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
+import XSVG from '@/assets/icons/maple/x.svg';
+
 type MapleDialogProps = PropsWithChildren<{
   className?: string;
   onClose: () => void;
@@ -48,13 +50,12 @@ export const MapleDialog = ({
           <button
             className="maple-icon-button"
             type="button"
+            autoFocus
             aria-label={t('Close')}
             title={t('Close')}
             onClick={onClose}
           >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              close
-            </span>
+            <XSVG aria-hidden="true" />
           </button>
         </header>
         <div className="maple-dialog-body">{children}</div>

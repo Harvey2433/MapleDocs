@@ -1,27 +1,50 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import MoonIcon from '@/assets/icons/maple/moon.svg';
+import PanelIcon from '@/assets/icons/maple/panel-left-close.svg';
+import SunIcon from '@/assets/icons/maple/sun.svg';
 import { StyledLink } from '@/components';
-import { getEmojiAndTitle, useDocStore, useTrans } from '@/docs/doc-management';
+import { useConfig } from '@/core';
+import {
+  getEmojiAndTitle,
+  useDocStore,
+  useProviderStore,
+  useTrans,
+} from '@/docs/doc-management';
 import { useAppearance } from '@/features/appearance';
-import { useAuth } from '@/features/auth';
+import { User, useAuth } from '@/features/auth';
+import { CommentSideBarButton } from '@/features/docs/doc-comments/components/CommentSideBar';
 import {
   KEY_LIST_DOC_ACCESSES,
   useDocAccesses,
 } from '@/features/docs/doc-share/api';
 import { DocShareButton } from '@/features/docs/doc-share/components/DocShareButton';
 import { useLeftPanelStore } from '@/features/left-panel';
-import { RightPanelCollapseButton } from '@/features/right-panel/components/RightPanelCollapseButton';
 
 import { DocToolBox } from './DocToolBox';
 
-const initials = (value: string) =>
-  value
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+const initials = (value: string) => {
+  const parts = value.trim().split(/\s+/);
+  const result =
+    parts.length === 1
+      ? Array.from(parts[0]).slice(0, 2).join('')
+      : parts.map((part) => part[0]).join('');
+  return result.slice(0, 2).toUpperCase();
+};
+
+type PresencePerson = Pick<
+  User,
+  'id' | 'email' | 'full_name' | 'short_name' | 'avatar_url'
+>;
+
+type AwarenessProfile = {
+  id: string;
+  email: string;
+  name: string;
+  shortName: string;
+  avatarUrl: string | null;
+};
 
 export const DocFloatingBar = () => {
   const { t } = useTranslation();
@@ -29,7 +52,10 @@ export const DocFloatingBar = () => {
   const { user } = useAuth();
   const { untitledDocument } = useTrans();
   const { effectiveTheme, toggleTheme } = useAppearance();
+  const { data: config } = useConfig();
+  const { provider } = useProviderStore();
   const { isPanelOpen, togglePanel } = useLeftPanelStore();
+  const [people, setPeople] = useState<PresencePerson[]>(user ? [user] : []);
   const isDeletedDoc = !!currentDoc?.deleted_at;
   const { data: accesses } = useDocAccesses(
     { docId: currentDoc?.id || '' },
@@ -42,7 +68,64 @@ export const DocFloatingBar = () => {
     ? getEmojiAndTitle(currentDoc.title || '').titleWithoutEmoji ||
       untitledDocument
     : untitledDocument;
-  const people = accesses?.map((access) => access.user) || (user ? [user] : []);
+
+  useEffect(() => {
+    const awareness = provider?.awareness;
+    const updatePeople = () => {
+      const accessUsers = [
+        ...(user ? [user] : []),
+        ...(accesses?.map((access) => access.user) || []),
+      ];
+      const online = new Map<string, PresencePerson>();
+      awareness?.getStates().forEach((state) => {
+        const profile = state.mapleUser as AwarenessProfile | undefined;
+        if (profile?.id && profile.name) {
+          online.set(profile.id, {
+            id: profile.id,
+            email: profile.email,
+            full_name: profile.name,
+            short_name: profile.shortName,
+            avatar_url: profile.avatarUrl,
+          });
+          return;
+        }
+        const presence = state.user as { name?: unknown } | undefined;
+        const name =
+          typeof presence?.name === 'string' ? presence.name.trim() : '';
+        if (name) {
+          const normalized = name.toLocaleLowerCase();
+          const match = accessUsers.find((candidate) =>
+            [candidate.full_name, candidate.short_name, candidate.email]
+              .filter(Boolean)
+              .some((value) => value.toLocaleLowerCase() === normalized),
+          );
+          online.set(
+            match?.id || `presence-${normalized}`,
+            match || {
+              id: `presence-${normalized}`,
+              email: '',
+              full_name: name,
+              short_name: name,
+              avatar_url: null,
+            },
+          );
+        }
+      });
+      setPeople(online.size ? Array.from(online.values()) : user ? [user] : []);
+    };
+    if (awareness && user) {
+      awareness.setLocalStateField('mapleUser', {
+        id: user.id,
+        email: user.email,
+        name: user.full_name,
+        shortName: user.short_name,
+        avatarUrl: user.avatar_url || null,
+      } satisfies AwarenessProfile);
+    }
+    updatePeople();
+    awareness?.on('change', updatePeople);
+    return () => awareness?.off('change', updatePeople);
+  }, [accesses, provider, user]);
 
   return (
     <header className="maple-doc-topbar" data-testid="floating-bar">
@@ -54,9 +137,7 @@ export const DocFloatingBar = () => {
           title={t('Open left panel')}
           onClick={togglePanel}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            dock_to_right
-          </span>
+          <PanelIcon aria-hidden="true" width={20} height={20} />
         </button>
       )}
       <nav className="maple-doc-breadcrumb" aria-label={t('Breadcrumb')}>
@@ -88,13 +169,17 @@ export const DocFloatingBar = () => {
           type="button"
           aria-label={t('Switch color mode')}
           title={t('Switch color mode')}
-          onClick={toggleTheme}
+          onClick={(event) => toggleTheme(event.currentTarget)}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            {effectiveTheme === 'dark' ? 'light_mode' : 'dark_mode'}
-          </span>
+          {effectiveTheme === 'dark' ? (
+            <SunIcon aria-hidden="true" width={19} height={19} />
+          ) : (
+            <MoonIcon aria-hidden="true" width={19} height={19} />
+          )}
         </button>
-        <RightPanelCollapseButton />
+        {config?.COMMENTS_ENABLED && currentDoc?.abilities.comment && (
+          <CommentSideBarButton />
+        )}
         {!isDeletedDoc && currentDoc && <DocShareButton doc={currentDoc} />}
         {!isDeletedDoc && currentDoc && <DocToolBox doc={currentDoc} />}
       </div>

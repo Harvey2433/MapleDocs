@@ -1,6 +1,8 @@
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 
+import FileIcon from '@/assets/icons/maple/file-text.svg';
+import TrashIcon from '@/assets/icons/maple/trash.svg';
 import { Box, StyledLink } from '@/components';
 import { DocDefaultFilter, useDocs, useTrans } from '@/docs/doc-management';
 import { useDocsTrashbin } from '@/features/docs/docs-grid/api';
@@ -31,9 +33,7 @@ export const LeftPanelFavorites = () => {
           className="maple-sidebar-item"
           onClick={() => isMobile && closePanel()}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            description
-          </span>
+          <FileIcon aria-hidden="true" width={20} height={20} />
           <span>{doc.title || untitledDocument}</span>
         </StyledLink>
       ))}
@@ -43,9 +43,7 @@ export const LeftPanelFavorites = () => {
         data-active={searchParams.get('target') === DocDefaultFilter.TRASHBIN}
         onClick={() => isMobile && closePanel()}
       >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          delete
-        </span>
+        <TrashIcon aria-hidden="true" width={20} height={20} />
         <span>{t('Trashbin')}</span>
         {typeof trash.data?.count === 'number' && (
           <small>{trash.data.count}</small>

@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 
+import LinkIcon from '@/assets/icons/maple/link.svg';
 import { Box, TextErrors } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
 import {
@@ -106,29 +107,6 @@ const EditorQuickToolbar = ({ editor }: { editor: DocsBlockNoteEditor }) => {
     <div className="maple-editor-toolbar" aria-label={t('Text formatting')}>
       <button
         type="button"
-        aria-label={t('Undo')}
-        title={t('Undo')}
-        onMouseDown={keepEditorFocus}
-        onClick={() => editor.undo()}
-      >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          undo
-        </span>
-      </button>
-      <button
-        type="button"
-        aria-label={t('Redo')}
-        title={t('Redo')}
-        onMouseDown={keepEditorFocus}
-        onClick={() => editor.redo()}
-      >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          redo
-        </span>
-      </button>
-      <span className="maple-toolbar-separator" />
-      <button
-        type="button"
         aria-label={t('Bold')}
         title={t('Bold')}
         onMouseDown={keepEditorFocus}
@@ -155,9 +133,7 @@ const EditorQuickToolbar = ({ editor }: { editor: DocsBlockNoteEditor }) => {
           editor.updateBlock(currentBlock(), { type: 'bulletListItem' })
         }
       >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          format_list_bulleted
-        </span>
+        <span aria-hidden="true">{'\u2022'}</span>
       </button>
       <button
         type="button"
@@ -166,9 +142,7 @@ const EditorQuickToolbar = ({ editor }: { editor: DocsBlockNoteEditor }) => {
         onMouseDown={keepEditorFocus}
         onClick={() => setLinkOpen((value) => !value)}
       >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          link
-        </span>
+        <LinkIcon aria-hidden="true" width={19} height={19} />
       </button>
       {linkOpen && (
         <form className="maple-toolbar-link" onSubmit={submitLink}>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Text } from '@/components';
 import { Doc } from '@/docs/doc-management';
+import { KEY_LIST_DOC_ACCESSES, useDocAccesses } from '@/docs/doc-share/api';
 import { useAuth } from '@/features/auth';
 import { useFocusStore } from '@/stores';
 
@@ -25,13 +26,34 @@ export const DocsGridItemSharedButton = ({ doc, disabled }: Props) => {
   const shareModal = useModal();
   const { addLastFocus, restoreFocus } = useFocusStore();
   const { user } = useAuth();
-  const userInitials = (user?.full_name || user?.email || 'M')
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const { data: accesses } = useDocAccesses(
+    { docId: doc.id },
+    {
+      enabled: doc.abilities.accesses_view && sharedCount > 0,
+      queryKey: [KEY_LIST_DOC_ACCESSES, { docId: doc.id }],
+      staleTime: 60_000,
+    },
+  );
+  const members = Array.isArray(accesses)
+    ? accesses.map((access) => access.user)
+    : sharedCount > 0 && user
+      ? [user]
+      : [];
+  const visibleMembers = members.slice(
+    0,
+    Math.min(sharedCount, members.length > 3 ? 2 : 3),
+  );
+  const hiddenCount = Math.max(sharedCount - visibleMembers.length, 0);
+  const initials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    return (
+      parts.length === 1
+        ? Array.from(parts[0]).slice(0, 2).join('')
+        : parts.map((part) => part[0]).join('')
+    )
+      .slice(0, 2)
+      .toUpperCase();
+  };
 
   return (
     <>
@@ -60,10 +82,26 @@ export const DocsGridItemSharedButton = ({ doc, disabled }: Props) => {
           }}
           disabled={disabled}
         >
-          <span className="maple-mini-avatar">{userInitials}</span>
-          {sharedCount > 1 && (
+          {visibleMembers.map((member, index) => {
+            const name = member.full_name || member.email || 'M';
+            return (
+              <span
+                key={member.id}
+                className={`maple-mini-avatar maple-presence-${(index % 3) + 1}`}
+                title={name}
+                style={
+                  member.avatar_url
+                    ? { backgroundImage: `url(${member.avatar_url})` }
+                    : undefined
+                }
+              >
+                {member.avatar_url ? '' : initials(name)}
+              </span>
+            );
+          })}
+          {hiddenCount > 0 && (
             <span className="maple-mini-avatar maple-mini-avatar-alt">
-              +{sharedCount - 1}
+              +{hiddenCount}
             </span>
           )}
         </button>

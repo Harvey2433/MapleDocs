@@ -2,7 +2,7 @@ import { useTreeContext } from '@gouvfr-lasuite/ui-kit';
 import { useRouter } from 'next/router';
 import { css } from 'styled-components';
 
-import { Box, SeparatedSection } from '@/components';
+import { Box } from '@/components';
 import { Doc } from '@/features/docs/doc-management';
 import { useDocStore } from '@/features/docs/doc-management/stores/useDocStore';
 import { DocTree } from '@/features/docs/doc-tree/components/DocTree';
@@ -26,9 +26,7 @@ export const LeftPanelContent = () => {
           `}
           className="--docs--home-left-panel-content"
         >
-          <SeparatedSection showSeparator={false}>
-            <LeftPanelTargetFilters />
-          </SeparatedSection>
+          <LeftPanelTargetFilters />
         </Box>
         <Box
           $flex={1}

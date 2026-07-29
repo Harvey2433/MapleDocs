@@ -14,18 +14,21 @@
 }
 
 :root {
-  --maple-accent: #1f6f54;
-  --maple-surface-opacity: 0.72;
+  --maple-accent: #1f5d45;
+  --maple-accent-contrast: #174735;
+  --maple-accent-soft: #eaf3ee;
+  --maple-surface-opacity: 0.7;
   --maple-material-strength: 18px;
-  --maple-surface-rgb: 248, 250, 249;
-  --maple-text: #15211d;
-  --maple-text-muted: #52615b;
+  --maple-material-saturation: 1.16;
+  --maple-surface-rgb: 255, 255, 255;
+  --maple-text: #202522;
+  --maple-text-muted: #46514b;
   --maple-border: rgb(40 61 53 / 16%);
   --maple-sidebar-width: 252px;
   --maple-topbar-height: 56px;
   --maple-line: #dde3df;
   --maple-line-strong: #cbd4ce;
-  --maple-subtle: #f2f5f3;
+  --maple-subtle: #f4f6f4;
   --maple-chrome-opacity: 0.14;
   --c--contextuals--background--semantic--brand--primary: var(--maple-accent);
   --c--contextuals--background--semantic--brand--primary-hover: color-mix(
@@ -50,13 +53,15 @@
 }
 
 :root[data-theme='dark'] {
-  --maple-surface-rgb: 24, 29, 28;
-  --maple-text: #f2f6f4;
-  --maple-text-muted: #bdc9c4;
+  --maple-surface-rgb: 25, 31, 27;
+  --maple-text: #edf2ef;
+  --maple-text-muted: #c3cdc7;
   --maple-border: rgb(226 238 233 / 18%);
   --maple-line: #343d38;
   --maple-line-strong: #46514b;
   --maple-subtle: #242b27;
+  --maple-accent-contrast: #79c6a0;
+  --maple-accent-soft: #243d31;
   --c--contextuals--background--surface--primary: rgb(25 31 27 / 82%);
   --c--contextuals--background--surface--secondary: rgb(31 38 34 / 84%);
   --c--contextuals--background--surface--tertiary: rgb(20 25 22 / 76%);
@@ -79,6 +84,25 @@ textarea,
 select {
   font-family: 'HarmonyOS Sans SC', sans-serif;
   letter-spacing: 0;
+}
+
+button {
+  color: inherit;
+  transition:
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+button:active {
+  transform: scale(0.96);
+  transition-duration: 70ms;
+}
+
+button:disabled {
+  opacity: 0.48;
+  transform: none;
 }
 
 button,
@@ -145,22 +169,24 @@ main[role='main'] {
     var(--maple-surface-opacity)
   ) !important;
   border-color: var(--maple-border) !important;
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.24);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 :root[data-material='gaussian'] .--docs--left-panel,
 :root[data-material='gaussian'] main[role='main'],
 :root[data-material='gaussian'] .--docs--editor-container,
 :root[data-material='gaussian'] .--docs--doc-grid > div {
-  backdrop-filter: blur(var(--maple-material-strength));
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 :root[data-material='acrylic'] .--docs--left-panel,
 :root[data-material='acrylic'] main[role='main'],
 :root[data-material='acrylic'] .--docs--editor-container,
 :root[data-material='acrylic'] .--docs--doc-grid > div {
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.55)
-    contrast(1.04);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 :root[data-theme='dark'] body,
@@ -185,7 +211,8 @@ main[role='main'] {
   border: 1px solid var(--maple-border);
   border-radius: 7px;
   background: rgb(var(--maple-surface-rgb), var(--maple-surface-opacity));
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.2);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 .maple-top-actions button {
@@ -337,8 +364,16 @@ main[role='main'] {
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 460ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -506,6 +541,13 @@ main ::-webkit-scrollbar-thumb:hover,
   font-size: 20px;
 }
 
+.maple-icon-button > svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  opacity: 0.75;
+}
+
 .maple-sidebar-actions {
   padding: 12px 10px 0;
 }
@@ -530,6 +572,10 @@ main ::-webkit-scrollbar-thumb:hover,
   background: rgb(var(--maple-surface-rgb), 0.34);
 }
 
+.maple-create-actions [data-testid='import-doc-button'] svg {
+  color: var(--maple-text);
+}
+
 .maple-sidebar-nav,
 .maple-sidebar-recent {
   display: flex;
@@ -543,6 +589,7 @@ main ::-webkit-scrollbar-thumb:hover,
 }
 
 .maple-sidebar-recent {
+  margin-top: 18px;
   padding-bottom: 12px;
 }
 
@@ -573,19 +620,18 @@ main ::-webkit-scrollbar-thumb:hover,
 }
 
 .maple-sidebar-item[data-active='true'] {
-  color: color-mix(
-    in srgb,
-    var(--maple-accent) 76%,
-    var(--maple-text)
-  ) !important;
-  background: color-mix(in srgb, var(--maple-accent) 13%, transparent);
+  color: var(--maple-accent-contrast) !important;
+  background: var(--maple-accent-soft);
   font-weight: 650;
 }
 
-.maple-sidebar-item > .material-symbols-outlined {
-  flex: 0 0 20px;
-  font-size: 20px;
-  opacity: 0.78;
+.maple-sidebar-item > .material-symbols-outlined,
+.maple-sidebar-item > svg {
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  font-size: 19px;
+  opacity: 0.75;
 }
 
 .maple-sidebar-item > span:not(.material-symbols-outlined) {
@@ -612,6 +658,11 @@ main ::-webkit-scrollbar-thumb:hover,
   margin-top: auto;
   padding: 9px 10px 9px 14px;
   border-top: 1px solid var(--maple-line);
+}
+
+.maple-sidebar-footer .c__button svg {
+  width: 19px;
+  height: 19px;
 }
 
 .maple-sidebar-avatar {
@@ -674,7 +725,8 @@ main ::-webkit-scrollbar-thumb:hover,
   padding: 0 22px;
   border-bottom: 1px solid var(--maple-line);
   background: rgb(var(--maple-surface-rgb), var(--maple-chrome-opacity));
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 .maple-workspace-topbar h1 {
@@ -704,6 +756,20 @@ main ::-webkit-scrollbar-thumb:hover,
   flex: 0 0 auto;
 }
 
+.maple-workspace-actions .maple-create-actions svg {
+  width: 17px;
+  height: 17px;
+}
+
+.maple-sidebar-actions .maple-create-actions svg {
+  width: 18px;
+  height: 18px;
+}
+
+.maple-workspace-actions .c__button:disabled svg {
+  color: var(--maple-text-muted) !important;
+}
+
 .maple-doc-search-trigger.c__button {
   width: min(280px, 28vw);
   height: 34px;
@@ -714,18 +780,31 @@ main ::-webkit-scrollbar-thumb:hover,
   border-radius: 6px;
   background: color-mix(
     in srgb,
-    var(--maple-accent) 4%,
+    var(--maple-accent-soft) 30%,
     rgb(var(--maple-surface-rgb), 0.72)
   );
   font-weight: 400;
 }
 
-.maple-theme-toggle .material-symbols-outlined {
-  transition: transform 440ms cubic-bezier(0.34, 1.56, 0.64, 1);
+.maple-theme-toggle {
+  overflow: hidden;
 }
 
-.maple-theme-toggle:active .material-symbols-outlined {
-  transform: rotate(160deg) scale(0.78);
+.maple-theme-toggle .material-symbols-outlined,
+.maple-theme-toggle svg {
+  width: 19px;
+  height: 19px;
+  color: var(--maple-text);
+  opacity: 0.75;
+  transition:
+    transform 440ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 180ms ease;
+}
+
+.maple-theme-toggle.is-changing .material-symbols-outlined,
+.maple-theme-toggle.is-changing svg {
+  opacity: 0.45;
+  transform: rotate(180deg) scale(0.72);
 }
 
 .--docs--doc-grid {
@@ -736,7 +815,8 @@ main ::-webkit-scrollbar-thumb:hover,
   overflow-y: auto;
   color: var(--maple-text);
   background: rgb(var(--maple-surface-rgb), var(--maple-surface-opacity));
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 .--docs--doc-grid.is-drag-over {
@@ -820,6 +900,10 @@ main ::-webkit-scrollbar-thumb:hover,
   text-decoration: none !important;
 }
 
+.maple-doc-date * {
+  color: var(--maple-text-muted) !important;
+}
+
 .--docs--simple-doc-item {
   align-items: center;
   gap: 10px !important;
@@ -830,8 +914,8 @@ main ::-webkit-scrollbar-thumb:hover,
 }
 
 .--docs--simple-doc-item > div:first-child svg {
-  width: 21px;
-  height: 21px;
+  width: 19px;
+  height: 19px;
   color: var(--maple-text-muted) !important;
 }
 
@@ -867,9 +951,11 @@ main ::-webkit-scrollbar-thumb:hover,
   height: 25px;
   place-items: center;
   color: #173329;
-  border: 2px solid rgb(var(--maple-surface-rgb));
+  border: 2px solid white;
   border-radius: 50%;
   background: #cfe4d8;
+  background-position: center;
+  background-size: cover;
   font-size: 9px;
   font-weight: 700;
 }
@@ -881,6 +967,21 @@ main ::-webkit-scrollbar-thumb:hover,
 .maple-mini-avatar-alt {
   color: #244b6d;
   background: #d7e6f1;
+}
+
+.maple-presence-1 {
+  color: #173329;
+  background-color: #cfe4d8;
+}
+
+.maple-presence-2 {
+  color: #244b6d;
+  background: #d7e6f1;
+}
+
+.maple-presence-3 {
+  color: #74352f;
+  background: #f1d9d5;
 }
 
 .maple-doc-date p {
@@ -1212,20 +1313,15 @@ nextjs-portal {
   );
   --c--contextuals--background--surface--secondary: rgb(31 38 34 / 64%);
   --c--contextuals--background--surface--tertiary: rgb(20 25 22 / 48%);
-  --c--contextuals--content--semantic--neutral--primary: #f2f6f4;
-  --c--contextuals--content--semantic--neutral--secondary: #bdc9c4;
-  --c--contextuals--content--semantic--neutral--tertiary: #aebbb5;
+  --c--contextuals--content--semantic--neutral--primary: #edf2ef;
+  --c--contextuals--content--semantic--neutral--secondary: #c3cdc7;
+  --c--contextuals--content--semantic--neutral--tertiary: #c3cdc7;
   --c--contextuals--border--surface--primary: #46514b;
-}
-
-:root[data-theme='dark'] .maple-sidebar-item[data-active='true'] {
-  color: #a9d7c2 !important;
-  background: color-mix(in srgb, var(--maple-accent) 32%, transparent);
 }
 
 :root[data-theme='dark'] .maple-sidebar-item[data-active='true'] small,
 :root[data-theme='dark'] .maple-sidebar-item[data-active='true'] svg {
-  color: #a9d7c2 !important;
+  color: var(--maple-accent-contrast) !important;
 }
 
 .--docs--main-layout {
@@ -1238,6 +1334,7 @@ nextjs-portal {
 
 main[role='main'],
 main.--docs--main-content,
+.--docs--doc-grid,
 .--docs--editor-container,
 .--docs--doc-editor-header,
 .--docs--doc-grid > div {
@@ -1256,7 +1353,8 @@ main.--docs--main-content,
     var(--maple-chrome-opacity)
   ) !important;
   box-shadow: none !important;
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 .--docs--left-panel[style*='width: 0'] {
@@ -1294,7 +1392,8 @@ main.--docs--main-content,
   color: var(--maple-text);
   border-bottom: 1px solid var(--maple-line);
   background: rgb(var(--maple-surface-rgb), var(--maple-chrome-opacity));
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
 }
 
 .maple-doc-breadcrumb {
@@ -1358,13 +1457,20 @@ main.--docs--main-content,
 .maple-doc-top-actions {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .maple-doc-top-actions .c__button {
   min-width: 34px;
   height: 34px;
   border-radius: 6px;
+}
+
+.maple-doc-top-actions > .c__button svg,
+.maple-doc-top-actions > button svg {
+  width: 19px;
+  height: 19px;
 }
 
 .maple-doc-top-actions .c__button:not([data-variant='primary']) {
@@ -1379,18 +1485,48 @@ main.--docs--main-content,
   background: var(--maple-subtle);
 }
 
+.maple-doc-top-actions .--docs--card--share {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.maple-doc-top-actions .--docs--card--share .c__button {
+  width: auto;
+  min-width: 0;
+  height: 34px;
+  gap: 7px;
+  padding: 0 13px;
+  color: var(--maple-text) !important;
+  border: 1px solid var(--maple-line-strong) !important;
+  border-radius: 6px;
+  background: rgb(var(--maple-surface-rgb), 0.72) !important;
+  font-weight: 600;
+}
+
+.maple-doc-top-actions .--docs--card--share .c__button:hover {
+  background: var(--maple-subtle) !important;
+}
+
+.maple-doc-top-actions .--docs--card--share svg {
+  width: 17px;
+  height: 17px;
+}
+
 .--docs--doc-editor {
-  width: min(868px, 100%) !important;
-  max-width: 868px !important;
+  width: min(760px, calc(100% - 48px)) !important;
+  max-width: 760px !important;
   min-height: calc(100dvh - var(--maple-topbar-height));
   margin: 0 auto !important;
-  padding: 0 54px 80px;
+  padding: 0 56px 80px;
   background: transparent !important;
 }
 
 .--docs--doc-editor-header {
   min-height: 0;
-  padding: 42px 0 0 !important;
+  padding: 100px 0 0 !important;
   border: 0 !important;
 }
 
@@ -1409,6 +1545,7 @@ main.--docs--main-content,
 
 .--docs--doc-title {
   min-height: 42px !important;
+  margin-bottom: 9px;
 }
 
 .--docs--doc-title-input,
@@ -1440,6 +1577,7 @@ main.--docs--main-content,
 }
 
 .--docs--main-editor {
+  margin-top: 28px;
   color: var(--maple-text) !important;
 }
 
@@ -1462,20 +1600,25 @@ main.--docs--main-content,
 }
 
 .maple-editor-toolbar {
-  position: sticky;
-  top: 12px;
+  position: fixed;
+  top: 98px;
+  left: calc(
+    var(--maple-sidebar-width) + (100vw - var(--maple-sidebar-width)) / 2
+  );
   z-index: 9;
   display: flex;
   width: fit-content;
   align-items: center;
   gap: 2px;
-  margin: 8px auto 24px;
+  margin: 0;
   padding: 4px;
   border: 1px solid var(--maple-line);
   border-radius: 7px;
   background: rgb(var(--maple-surface-rgb), 0.72);
   box-shadow: 0 5px 14px rgb(35 45 39 / 8%);
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
+  transform: translateX(-50%);
 }
 
 .maple-editor-toolbar button {
@@ -1537,8 +1680,12 @@ main.--docs--main-content,
 .maple-save-state {
   position: absolute;
   z-index: 4;
-  top: -27px;
-  right: 0;
+  top: -9px;
+  left: 0;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 7px;
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -1547,6 +1694,79 @@ main.--docs--main-content,
   background: transparent;
   backdrop-filter: none;
   font-size: 12px;
+}
+
+.maple-save-state::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4b996f;
+  content: '';
+}
+
+.maple-doc-header-info {
+  margin-left: 66px !important;
+  transform: translateY(7px);
+}
+
+.c__dropdown-menu:has([data-testid^='docs-grid-actions-rename-']) {
+  position: relative;
+  top: -5px;
+  left: -48px;
+  width: 142px;
+  min-width: 142px;
+  padding: 5px;
+  border-color: var(--maple-line-strong);
+  border-radius: 7px;
+  background: rgb(var(--maple-surface-rgb), 0.92);
+  box-shadow: 0 10px 28px rgb(24 34 28 / 16%);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
+}
+
+.c__dropdown-menu:has([data-testid^='docs-grid-actions-rename-'])
+  .c__dropdown-menu-item {
+  min-height: 32px;
+  padding: 0 9px;
+  border-radius: 5px;
+  line-height: 19px;
+}
+
+.maple-rename-form,
+.maple-rename-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.maple-rename-form input {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  color: var(--maple-text);
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 6px;
+  background: rgb(var(--maple-surface-rgb), 0.72);
+}
+
+.maple-rename-form > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.maple-rename-form button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 6px;
+  background: transparent;
+}
+
+.maple-rename-form button[type='submit'] {
+  color: white;
+  border-color: var(--maple-accent);
+  background: var(--maple-accent);
 }
 
 :root[data-theme='dark'] .mantine-Popover-dropdown,
@@ -1577,7 +1797,8 @@ main.--docs--main-content,
   border-radius: 8px;
   background: rgb(var(--maple-surface-rgb), 0.9);
   box-shadow: 0 18px 60px rgb(24 36 29 / 20%);
-  backdrop-filter: blur(var(--maple-material-strength)) saturate(1.16);
+  backdrop-filter: blur(var(--maple-material-strength))
+    saturate(var(--maple-material-saturation));
   animation: maple-dialog-in 360ms cubic-bezier(0.34, 1.36, 0.64, 1);
 }
 
@@ -1592,7 +1813,7 @@ main.--docs--main-content,
 .maple-dialog-head {
   display: flex;
   align-items: center;
-  padding: 16px 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--maple-line);
 }
 
@@ -1604,6 +1825,16 @@ main.--docs--main-content,
 
 .maple-dialog-head .maple-icon-button {
   margin-left: auto;
+  margin-right: -4px;
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+}
+
+.maple-dialog-head .maple-icon-button:focus {
+  color: var(--maple-text);
+  border-color: var(--maple-accent);
+  box-shadow: inset 0 0 0 1px var(--maple-accent);
 }
 
 .maple-dialog-body {
@@ -1638,6 +1869,21 @@ main.--docs--main-content,
 .maple-settings-group h3 .material-symbols-outlined {
   color: var(--maple-text-muted);
   font-size: 18px;
+}
+
+.maple-settings-group h3 svg,
+.maple-setting-options svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: var(--maple-text-muted);
+  opacity: 0.7;
+}
+
+.maple-mode-options svg {
+  width: 17px;
+  height: 17px;
+  flex-basis: 17px;
 }
 
 .maple-setting-options {
@@ -1688,6 +1934,8 @@ main.--docs--main-content,
 
 .maple-wallpaper-options button,
 .maple-wallpaper-options label {
+  position: relative;
+  overflow: hidden;
   height: 76px;
   flex-direction: column;
   gap: 6px;
@@ -1695,6 +1943,38 @@ main.--docs--main-content,
   border-radius: 7px;
   background: var(--maple-subtle);
   font-size: 12px;
+}
+
+.maple-wallpaper-options button:nth-child(2) {
+  background-image: url('../features/home/assets/banner.jpg');
+  background-position: center;
+  background-size: cover;
+}
+
+.maple-wallpaper-options button:nth-child(2)::before {
+  position: absolute;
+  z-index: 0;
+  background: rgb(255 255 255 / 58%);
+  content: '';
+  inset: 0;
+}
+
+.maple-wallpaper-options button:nth-child(2) {
+  color: #1f2923;
+}
+
+.maple-wallpaper-options button > *,
+.maple-wallpaper-options label > * {
+  position: relative;
+  z-index: 1;
+}
+
+.maple-wallpaper-options svg {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+  color: var(--maple-text);
+  opacity: 0.9;
 }
 
 .maple-wallpaper-options button[data-active='true'],
@@ -1710,20 +1990,36 @@ main.--docs--main-content,
 
 .maple-color-row {
   display: grid;
-  grid-template-columns: auto 42px minmax(110px, 1fr) minmax(210px, 1.6fr);
+  grid-template-columns: 42px minmax(110px, 1fr) minmax(210px, 1.6fr);
   align-items: center;
   gap: 10px;
 }
 
 .maple-swatches {
+  grid-column: 1 / -1;
+  display: flex;
   gap: 12px;
 }
 
 .maple-swatches button {
+  position: relative;
   width: 30px;
   height: 30px;
   border: 2px solid rgb(var(--maple-surface-rgb));
+  border-radius: 50%;
   box-shadow: 0 0 0 1px var(--maple-line-strong);
+}
+
+.maple-swatches button[data-active='true'] {
+  outline: 0;
+}
+
+.maple-swatches button[data-active='true']::after {
+  position: absolute;
+  border: 2px solid white;
+  border-radius: 50%;
+  content: '';
+  inset: 7px;
 }
 
 .maple-native-color {
@@ -1767,7 +2063,11 @@ main.--docs--main-content,
 }
 
 .maple-hex-input input {
-  padding-left: 38px;
+  padding-left: 10px;
+}
+
+.maple-settings-group:last-of-type {
+  padding-bottom: 0;
 }
 
 .maple-rgb-inputs {
@@ -1890,6 +2190,11 @@ main.--docs--main-content,
   object-fit: cover;
 }
 
+.maple-profile-preview .maple-secondary-button svg {
+  width: 17px;
+  height: 17px;
+}
+
 .maple-profile-form > label {
   display: grid;
   gap: 7px;
@@ -1903,10 +2208,63 @@ main.--docs--main-content,
 }
 
 .maple-profile-actions {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 18px;
+}
+
+.maple-profile-dialog .maple-dialog-body {
+  padding-bottom: 12px;
+}
+
+.maple-sidebar-account {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.maple-sidebar-account summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.maple-sidebar-account summary::-webkit-details-marker {
+  display: none;
+}
+
+.maple-account-menu {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  bottom: calc(100% + 9px);
+  width: 142px;
+  padding: 5px;
+  border: 1px solid var(--maple-line-strong);
+  border-radius: 7px;
+  background: rgb(var(--maple-surface-rgb), 0.92);
+  box-shadow: 0 10px 28px rgb(24 34 28 / 16%);
+  backdrop-filter: blur(var(--maple-material-strength));
+}
+
+.maple-account-menu button {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 9px;
+  color: #d45c55;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.maple-account-menu button:hover {
+  background: var(--maple-subtle);
 }
 
 .c__toast__container {
@@ -1982,15 +2340,8 @@ main.--docs--main-content,
   }
 
   .maple-profile-actions {
+    display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-
-  .maple-profile-actions > span {
-    display: none;
-  }
-
-  .maple-profile-actions .maple-text-button {
-    grid-column: 1 / -1;
   }
 }
 /* stylelint-enable no-duplicate-selectors */

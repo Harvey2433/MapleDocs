@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import PanelLeftCloseIcon from '@/assets/icons/maple/panel-left-close.svg';
 import { Box, StyledLink } from '@/components';
 import { NewDocButton } from '@/docs/doc-management/components/NewDocButton';
 import { useAuth } from '@/features/auth';
@@ -25,9 +26,7 @@ export const LeftPanelHeader = () => {
           aria-label={t('Close left panel')}
           title={t('Close left panel')}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            dock_to_left
-          </span>
+          <PanelLeftCloseIcon aria-hidden="true" width={19} height={19} />
         </button>
       </Box>
       <LeftPanelHeaderActions />

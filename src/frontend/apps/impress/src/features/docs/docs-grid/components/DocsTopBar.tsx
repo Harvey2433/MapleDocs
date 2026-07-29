@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
+import MoonIcon from '@/assets/icons/maple/moon.svg';
+import PanelIcon from '@/assets/icons/maple/panel-left-close.svg';
+import SunIcon from '@/assets/icons/maple/sun.svg';
 import { DocDefaultFilter, useTrans } from '@/docs/doc-management';
 import { NewDocButton } from '@/docs/doc-management/components/NewDocButton';
 import { useAppearance } from '@/features/appearance';
@@ -22,9 +25,7 @@ export const DocsTopBar = ({ target }: { target: DocDefaultFilter }) => {
           title={t('Open left panel')}
           onClick={togglePanel}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            dock_to_right
-          </span>
+          <PanelIcon aria-hidden="true" width={20} height={20} />
         </button>
       )}
       <h1>{transFilter(target)}</h1>
@@ -37,11 +38,13 @@ export const DocsTopBar = ({ target }: { target: DocDefaultFilter }) => {
           type="button"
           aria-label={t('Switch color mode')}
           title={t('Switch color mode')}
-          onClick={toggleTheme}
+          onClick={(event) => toggleTheme(event.currentTarget)}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">
-            {effectiveTheme === 'dark' ? 'light_mode' : 'dark_mode'}
-          </span>
+          {effectiveTheme === 'dark' ? (
+            <SunIcon aria-hidden="true" width={19} height={19} />
+          ) : (
+            <MoonIcon aria-hidden="true" width={19} height={19} />
+          )}
         </button>
         <NewDocButton />
       </div>

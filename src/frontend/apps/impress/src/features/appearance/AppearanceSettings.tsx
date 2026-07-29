@@ -1,8 +1,14 @@
 import { ChangeEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import ImageSVG from '@/assets/icons/maple/image.svg';
+import MonitorSVG from '@/assets/icons/maple/monitor.svg';
+import MoonSVG from '@/assets/icons/maple/moon.svg';
+import PaletteSVG from '@/assets/icons/maple/palette.svg';
+import SunSVG from '@/assets/icons/maple/sun.svg';
+import UploadSVG from '@/assets/icons/maple/upload.svg';
+import XSVG from '@/assets/icons/maple/x.svg';
 import { MapleDialog } from '@/components';
-import { useConfig } from '@/core';
 import { UserAppearance } from '@/features/auth';
 
 import { useAppearance } from './AppearanceProvider';
@@ -27,8 +33,8 @@ const isValidBackgroundUrl = (value: string) => {
 
 export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
   const { t } = useTranslation();
-  const { data: config } = useConfig();
-  const { appearance, setAppearance, uploadBackground } = useAppearance();
+  const { appearance, setAppearance, transitionTheme, uploadBackground } =
+    useAppearance();
   const [accentDraft, setAccentDraft] = useState(appearance.accent);
   const [urlDraft, setUrlDraft] = useState(appearance.background_url);
   const [uploadState, setUploadState] = useState<
@@ -70,9 +76,7 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
     >
       <section className="maple-settings-group">
         <h3>
-          <span className="material-symbols-outlined" aria-hidden="true">
-            monitor
-          </span>
+          <MonitorSVG aria-hidden="true" />
           {t('Display mode')}
         </h3>
         <div className="maple-setting-options maple-mode-options">
@@ -81,15 +85,15 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
               key={mode}
               type="button"
               data-active={appearance.theme_mode === mode}
-              onClick={() => patch({ theme_mode: mode })}
+              onClick={(event) => transitionTheme(mode, event.currentTarget)}
             >
-              <span className="material-symbols-outlined" aria-hidden="true">
-                {mode === 'system'
-                  ? 'monitor'
-                  : mode === 'light'
-                    ? 'light_mode'
-                    : 'dark_mode'}
-              </span>
+              {mode === 'system' ? (
+                <MonitorSVG aria-hidden="true" />
+              ) : mode === 'light' ? (
+                <SunSVG aria-hidden="true" />
+              ) : (
+                <MoonSVG aria-hidden="true" />
+              )}
               {t(
                 mode === 'system'
                   ? 'System'
@@ -104,9 +108,7 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
 
       <section className="maple-settings-group">
         <h3>
-          <span className="material-symbols-outlined" aria-hidden="true">
-            palette
-          </span>
+          <PaletteSVG aria-hidden="true" />
           {t('Theme color')}
         </h3>
         <div className="maple-color-row">
@@ -132,7 +134,6 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
             }
           />
           <label className="maple-hex-input">
-            <span>HEX</span>
             <input
               value={accentDraft}
               maxLength={7}
@@ -164,9 +165,7 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
 
       <section className="maple-settings-group">
         <h3>
-          <span className="material-symbols-outlined" aria-hidden="true">
-            image
-          </span>
+          <ImageSVG aria-hidden="true" />
           {t('Global background')}
         </h3>
         <div className="maple-setting-options maple-wallpaper-options">
@@ -175,9 +174,7 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
             data-active={appearance.background_source === 'none'}
             onClick={() => patch({ background_source: 'none' })}
           >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              close
-            </span>
+            <XSVG aria-hidden="true" />
             {t('No background')}
           </button>
           <button
@@ -185,15 +182,11 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
             data-active={appearance.background_source === 'builtin'}
             onClick={() => patch({ background_source: 'builtin' })}
           >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              image
-            </span>
+            <ImageSVG aria-hidden="true" />
             {t('Collaboration illustration')}
           </button>
           <label data-active={appearance.background_source === 'upload'}>
-            <span className="material-symbols-outlined" aria-hidden="true">
-              upload
-            </span>
+            <UploadSVG aria-hidden="true" />
             {uploadState === 'uploading' ? t('Uploading...') : t('Local image')}
             <input
               type="file"
@@ -217,10 +210,11 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
           <button
             className="maple-secondary-button"
             type="button"
-            disabled={!isValidBackgroundUrl(urlDraft)}
-            onClick={() =>
-              patch({ background_source: 'url', background_url: urlDraft })
-            }
+            onClick={() => {
+              if (isValidBackgroundUrl(urlDraft)) {
+                patch({ background_source: 'url', background_url: urlDraft });
+              }
+            }}
           >
             {t('Apply URL')}
           </button>
@@ -295,15 +289,6 @@ export const AppearanceSettings = ({ onClose }: { onClose: () => void }) => {
           <output>{appearance.surface_opacity}%</output>
         </label>
       </section>
-
-      {!config?.COMMENTS_ENABLED && (
-        <p className="maple-setting-note">
-          <span className="material-symbols-outlined" aria-hidden="true">
-            lock
-          </span>
-          {t('Comments are disabled by the administrator.')}
-        </p>
-      )}
     </MapleDialog>
   );
 };

@@ -2,6 +2,8 @@ import { Button } from '@gouvfr-lasuite/cunningham-react';
 import { useRouter } from 'next/router';
 import { useTranslation } from 'react-i18next';
 
+import MoonIcon from '@/assets/icons/maple/moon.svg';
+import SunIcon from '@/assets/icons/maple/sun.svg';
 import PaletteSVG from '@/assets/icons/ui-kit/palette.svg';
 
 import { useAppearance } from './AppearanceProvider';
@@ -31,11 +33,13 @@ export const AppearanceTopBar = () => {
         variant="tertiary"
         color="neutral"
         icon={
-          <span className="material-symbols-outlined" aria-hidden="true">
-            {effectiveTheme === 'dark' ? 'light_mode' : 'dark_mode'}
-          </span>
+          effectiveTheme === 'dark' ? (
+            <SunIcon aria-hidden="true" width={19} height={19} />
+          ) : (
+            <MoonIcon aria-hidden="true" width={19} height={19} />
+          )
         }
-        onClick={toggleTheme}
+        onClick={(event) => toggleTheme(event.currentTarget)}
       />
     </div>
   );
